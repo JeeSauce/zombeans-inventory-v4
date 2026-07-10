@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Poppins } from "next/font/google";
+import { Inter, Anton, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -8,10 +9,18 @@ const inter = Inter({
   display: "swap",
 });
 
-const poppins = Poppins({
+// Condensed heavy display face — the Zombeans headline voice. Used with restraint.
+const anton = Anton({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-poppins",
+  weight: "400",
+  variable: "--font-anton",
+  display: "swap",
+});
+
+// Operational signature: every quantity, SKU, price, and reference number is set in mono.
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
   display: "swap",
 });
 
@@ -22,7 +31,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1a1a14",
+  themeColor: "#203222",
   width: "device-width",
   initialScale: 1,
 };
@@ -30,7 +39,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${poppins.variable} antialiased`}>{children}</body>
+      <body className={`${inter.variable} ${anton.variable} ${jetbrainsMono.variable} antialiased`}>
+        <ThemeProvider>{children}</ThemeProvider>
+      </body>
     </html>
   );
 }

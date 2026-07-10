@@ -3,8 +3,11 @@
 Production-ready, multi-branch inventory management for the **Zombeans** café & restaurant —
 central warehouse, production factory, and four branches (Main, Roadkill, Plaza, Popup).
 
-> **Status:** Phase 0 (Planning & Foundation) complete. Business modules begin in Phase 1.
+> **Status:** Phase 1 (Auth, Users, Roles & Security) complete. Phase 2 (Catalog) is next.
 > See [`docs/IMPLEMENTATION_PHASES.md`](docs/IMPLEMENTATION_PHASES.md).
+>
+> Local dev: `npx supabase start` → `npm run seed:dev` → `npm run dev`. Sign in with
+> `superadmin@zombeans.dev` / `Zombeans!Dev123` (step-up code prints to the server console).
 
 ## Stack
 

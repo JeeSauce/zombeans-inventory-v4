@@ -1,75 +1,101 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
 /*
-  Zombeans design tokens — derived from assets/Zombeans Brand Guidelines v2.png.
-  Brand: Zombie Green #31E11A · Brain Pink #E7A8B9 · Coffee Bean Brown #A7632B ·
-         Dark Roast #1A1A14 · Soft White #F7F6F2 · Charcoal #2A2A2A.
-  Operational UI: restrained theme, readability first. Green is the ACCENT, not the surface.
+  Zombeans design tokens — derived directly from the live site (zombeans.xyz).
+  Dark forest-green is the brand default; a warm cream light mode is provided for
+  data-heavy daytime use. Amber = primary action, sage = structure, zombie-green =
+  rare positive/critical accent + logo glow. Type: Anton (display), Inter (body),
+  JetBrains Mono (all data/numbers). Operational clarity first.
 */
 
-@theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Poppins", ui-sans-serif, system-ui, sans-serif;
-
-  /* Raw brand palette */
-  --color-zombie-green: #31e11a;
-  --color-brain-pink: #e7a8b9;
-  --color-coffee-brown: #a7632b;
-  --color-dark-roast: #1a1a14;
-  --color-soft-white: #f7f6f2;
-  --color-charcoal: #2a2a2a;
-
-  --radius: 0.625rem;
-}
-
-/* Semantic tokens (shadcn-compatible) — light theme */
+/* Light (operational) theme */
 :root {
-  --background: var(--color-soft-white);
-  --foreground: var(--color-dark-roast);
+  --radius: 0.625rem;
+
+  --background: #f7eee6;
+  --foreground: #203222;
   --card: #ffffff;
-  --card-foreground: var(--color-dark-roast);
+  --card-foreground: #203222;
   --popover: #ffffff;
-  --popover-foreground: var(--color-dark-roast);
-  --primary: var(--color-dark-roast);
-  --primary-foreground: var(--color-soft-white);
-  --accent: var(--color-zombie-green);
-  --accent-foreground: var(--color-dark-roast);
-  --secondary: #eceae4;
-  --secondary-foreground: var(--color-dark-roast);
-  --muted: #eceae4;
-  --muted-foreground: #6b6b60;
-  --border: #dedbd2;
-  --input: #dedbd2;
-  --ring: var(--color-zombie-green);
-  --destructive: #d6382f; /* Critical / negative inventory alerts */
+  --popover-foreground: #203222;
+  --primary: #c98a2b; /* deeper gold for contrast on cream (brand amber family) */
+  --primary-foreground: #fff8e8;
+  --secondary: #eae1d3;
+  --secondary-foreground: #203222;
+  --muted: #efe7db;
+  --muted-foreground: #5f6b54;
+  --accent: #65845b;
+  --accent-foreground: #ffffff;
+  --border: #ddd3c5;
+  --input: #d3c8b8;
+  --ring: #c98a2b;
+  --destructive: #b5342a;
   --destructive-foreground: #ffffff;
-  --warning: #d98a1f;
-  --success: #2f8f2a;
+  --success: #1f8f4e;
+  --warning: #b0791c;
+  --brand-glow: #3ade3a;
 }
 
-/* Dark theme */
+/* Dark (brand) theme — exact live-site values */
 .dark {
-  --background: var(--color-dark-roast);
-  --foreground: var(--color-soft-white);
-  --card: var(--color-charcoal);
-  --card-foreground: var(--color-soft-white);
-  --popover: var(--color-charcoal);
-  --popover-foreground: var(--color-soft-white);
-  --primary: var(--color-soft-white);
-  --primary-foreground: var(--color-dark-roast);
-  --accent: var(--color-zombie-green);
-  --accent-foreground: var(--color-dark-roast);
-  --secondary: #33332b;
-  --secondary-foreground: var(--color-soft-white);
-  --muted: #33332b;
-  --muted-foreground: #a3a294;
-  --border: #3a3a30;
-  --input: #3a3a30;
-  --ring: var(--color-zombie-green);
-  --destructive: #ef4d43;
+  --background: #203222;
+  --foreground: #ede0d6;
+  --card: #1c2d1d;
+  --card-foreground: #ede0d6;
+  --popover: #1c2d1d;
+  --popover-foreground: #ede0d6;
+  --primary: #e5c07b;
+  --primary-foreground: #1e2016;
+  --secondary: #65845b;
+  --secondary-foreground: #ede0d6;
+  --muted: #24371f;
+  --muted-foreground: #b9c3ac;
+  --accent: #65845b;
+  --accent-foreground: #ede0d6;
+  --border: #65845b40;
+  --input: #3a4d38;
+  --ring: #e5c07b;
+  --destructive: #d5493d;
   --destructive-foreground: #ffffff;
-  --warning: #e0a13a;
-  --success: #4fb04a;
+  --success: #3ade3a;
+  --warning: #f0a13a;
+  --brand-glow: #3ade3a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-brand-glow: var(--brand-glow);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-anton), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 @layer base {
@@ -81,11 +107,20 @@
     color: var(--foreground);
     font-family: var(--font-sans);
   }
-  h1,
-  h2,
-  h3,
-  h4 {
+  /* Eyebrow / display helper — Anton, condensed, tracked-out uppercase. Used with restraint. */
+  .font-display {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: 0.01em;
+  }
+  .eyebrow {
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--primary);
+  }
+  /* Tabular data: quantities, SKUs, prices, reference numbers. */
+  .font-data {
+    font-family: var(--font-mono);
+    font-feature-settings: "tnum" 1;
   }
 }

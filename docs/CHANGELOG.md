@@ -5,6 +5,32 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 1 — Authentication, Users, Roles & Security — 2026-07-10
+
+Added
+
+- Identity schema (migrations 0001–0005): profiles, roles, permissions, role_permissions,
+  user_roles, email_code_challenges, audit_logs; 38-permission catalog + 4 system roles.
+- RLS on all identity tables + `has_permission` / `is_super_admin` / `current_permissions` /
+  `current_roles` SECURITY DEFINER helpers; explicit grants (authenticated + service_role).
+- Protected Super Admin (triggers block disable/delete/demote + privileged-field escalation).
+- Super Admin step-up email verification: CSPRNG 6-digit code, HMAC-hash at rest, ~5-min TTL,
+  single-use, attempt- and rate-limited, fully audited; middleware gates a password-only Super
+  Admin session to /verify until verified (signed httpOnly marker, edge-verified).
+- Server permission enforcement, session middleware, force-logout of disabled accounts,
+  password-reset request, append-only audit writer, provider-agnostic email (console transport).
+- UI: login → step-up → dashboard; app shell (permission-gated sidebar + mobile nav, theme
+  toggle, account menu); role-gated dashboard; user management (create/roles/enable-disable);
+  audit-log viewer. Design system retokenized from the live site (Anton/Inter/JetBrains Mono,
+  forest-green/cream/amber, dark + light).
+- Dev seed (local-only, guarded); scan:bundle guard (scenario #23) wired into CI.
+
+Tests
+
+- 13 unit (step-up logic — scenarios 21, 22; localization), 11 RLS integration (permission
+  helpers, profile scoping, sensitive-table lockdown, Super Admin protection), 8 Playwright e2e
+  (auth happy + failure paths, step-up gate; desktop + mobile). Bundle scan confirms scenario 23.
+
 ### Phase 0 — Planning & Repository Foundation — 2026-07-10
 
 Added
