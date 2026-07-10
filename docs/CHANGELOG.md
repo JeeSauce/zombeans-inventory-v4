@@ -5,6 +5,36 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 2 — Branches, Categories, Units & Catalog — 2026-07-11
+
+Added
+
+- Org & Catalog schema (migrations 0006–0009): branches, user_branch_assignments (deferred from
+  Phase 1), categories (typed tree), units + unit_conversions, unified inventory_items, products,
+  product_variants, modifiers + modifier_options, branch_prices, barcodes, application_settings.
+  New enums (item_type, unit_dimension, product_kind, tax_mode, modifier_selection/affects,
+  barcode_symbology); indexes, updated_at/version triggers; audit_logs.branch_id FK wired up.
+- RLS on every catalog table gated by catalog.item.read/write, price.read/write, settings.manage.
+  Sensitive `weighted_avg_cost` granted by explicit column list (omitted from `authenticated`) so
+  cost is unreadable at the DB layer, not just hidden in the UI (rule 4).
+- Functions: `next_item_sku()` / `next_variant_sku()` (SECURITY DEFINER SKU generators),
+  `tax_config()`, and `compute_line_tax()` — the DB single source of truth for VAT (scenario 20).
+- Reference seed: 2 branches (Commissary + San Carlos), 12 units + core conversions, starter
+  category tree, VAT config disabled by default (12% pre-filled), placeholder thresholds.
+- Zod schemas (`lib/validation/catalog.ts`) + `lib/catalog/tax.ts` (TS twin of compute_line_tax).
+- Server actions: branches CRUD, VAT settings, inventory-item create (auto SKU), product create
+  (item + overlay), and independent per-branch pricing — all requirePermission + audited via RLS.
+- UI: Branches admin, Settings (VAT toggle with live preview), Inventory items (typed create),
+  Products with per-branch price editor and VAT-aware price display; permission-gated nav.
+
+Tests
+
+- 8 unit (VAT compute — scenario 20), 13 catalog RLS/integration (scenario 19 branch-price
+  independence + schema integrity, scenario 20 DB VAT gating, price/settings/cost gating), 4
+  Playwright e2e (catalog permission gating for staff + manager). Full suite: 45 → 49 vitest.
+
+Gate: critical scenarios 19 (branch prices independent) and 20 (VAT only when enabled) pass.
+
 ### Phase 1 — Authentication, Users, Roles & Security — 2026-07-10
 
 Added
