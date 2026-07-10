@@ -23,6 +23,7 @@ const serverSchema = z.object({
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
+  STEPUP_CODE_PEPPER: z.string().min(8).default("local-dev-stepup-pepper-change-me"),
   STEPUP_CODE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
   STEPUP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   STEPUP_RATE_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(5),

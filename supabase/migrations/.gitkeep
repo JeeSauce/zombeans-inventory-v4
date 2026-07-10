@@ -1,6 +1,0 @@
-# Numbered SQL migrations land here starting Phase 1:
-#   0001_extensions.sql        — pgcrypto, etc.
-#   0002_identity_access.sql   — profiles, roles, permissions, audit
-#   0003_rls_identity.sql      — RLS policies for identity tables
-#   ...
-# Order: schema → constraints/indexes → RLS policies → SECURITY DEFINER functions.

@@ -20,11 +20,6 @@ major_version = 15
 enabled = true
 port = 54323
 
-[inbucket]
-# Catches step-up verification / notification emails locally for inspection.
-enabled = true
-port = 54324
-
 [auth]
 enabled = true
 site_url = "http://localhost:3000"
