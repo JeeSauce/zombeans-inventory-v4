@@ -6,6 +6,8 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Run on all paths except static assets and image optimizer.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icons/).*)"],
+  // Run on all paths except Next internals and static asset files (by extension).
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|webmanifest)$).*)",
+  ],
 };
