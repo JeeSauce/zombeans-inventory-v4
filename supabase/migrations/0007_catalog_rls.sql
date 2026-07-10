@@ -15,7 +15,6 @@ grant select, insert, update, delete on
   public.categories,
   public.units,
   public.unit_conversions,
-  public.inventory_items,
   public.products,
   public.product_variants,
   public.modifiers,
@@ -25,10 +24,26 @@ grant select, insert, update, delete on
   to authenticated;
 grant select, insert, update, delete on public.application_settings to authenticated;
 
--- Sensitive cost column: no authenticated role may read it directly. (Table grant above implicitly
--- covered every column; strip the one sensitive column back out.)
-revoke select (weighted_avg_cost) on public.inventory_items from authenticated;
-revoke update (weighted_avg_cost) on public.inventory_items from authenticated;
+-- inventory_items: the weighted_avg_cost column is SENSITIVE (rule 4). A table-level SELECT grant
+-- would implicitly cover every column and cannot be carved back with REVOKE, so `authenticated` is
+-- granted column-by-column, omitting weighted_avg_cost. Cost-gated read paths (for cost.read) arrive
+-- with costing in Phase 4; the raw column stays server-only (service_role) until then.
+grant select (
+  id, name, sku, item_type, category_id, base_unit_id, purchase_unit_id, low_stock_threshold,
+  reorder_level, trackable, batch_tracked, expiry_tracked, is_consumable, image_url, storage_notes,
+  active, created_at, updated_at, created_by, updated_by, version, deleted_at, deleted_by, purge_at
+) on public.inventory_items to authenticated;
+grant insert (
+  name, sku, item_type, category_id, base_unit_id, purchase_unit_id, low_stock_threshold,
+  reorder_level, trackable, batch_tracked, expiry_tracked, is_consumable, image_url, storage_notes,
+  active, created_by, updated_by, deleted_at, deleted_by, purge_at
+) on public.inventory_items to authenticated;
+grant update (
+  name, sku, item_type, category_id, base_unit_id, purchase_unit_id, low_stock_threshold,
+  reorder_level, trackable, batch_tracked, expiry_tracked, is_consumable, image_url, storage_notes,
+  active, updated_by, version, deleted_at, deleted_by, purge_at
+) on public.inventory_items to authenticated;
+grant delete on public.inventory_items to authenticated;
 
 -- Service role (BYPASSRLS) still needs explicit grants; it owns cost maintenance + privileged paths.
 grant select, insert, update, delete on

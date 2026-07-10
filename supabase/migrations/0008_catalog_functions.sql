@@ -9,10 +9,12 @@ create sequence if not exists public.item_sku_seq    as bigint start 1000;
 create sequence if not exists public.variant_sku_seq as bigint start 1000;
 
 -- ITM-001000, ITM-001001, … — sortable, unique, never a raw UUID.
+-- SECURITY DEFINER so callers need no direct USAGE on the sequence (owner postgres holds it).
 create or replace function public.next_item_sku()
 returns text
 language sql
 volatile
+security definer
 set search_path = public
 as $$
   select 'ITM-' || lpad(nextval('public.item_sku_seq')::text, 6, '0');
@@ -22,6 +24,7 @@ create or replace function public.next_variant_sku()
 returns text
 language sql
 volatile
+security definer
 set search_path = public
 as $$
   select 'VAR-' || lpad(nextval('public.variant_sku_seq')::text, 6, '0');
