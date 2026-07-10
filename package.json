@@ -22,7 +22,7 @@
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:migrate": "supabase migration up",
-    "db:seed": "supabase db reset --no-seed && node scripts/seed.mjs",
+    "seed:dev": "node --env-file=.env.local scripts/seed-dev.mjs",
     "prepare": "husky || true"
   },
   "dependencies": {

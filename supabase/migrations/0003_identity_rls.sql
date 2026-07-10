@@ -86,6 +86,13 @@ grant select, insert, update, delete on
   to authenticated;
 grant select on public.audit_logs to authenticated;  -- append-only: no insert/update/delete
 
+-- The service role (BYPASSRLS backend client) still needs explicit table grants. It owns the
+-- privileged paths: issuing/verifying step-up codes, creating accounts, writing audit rows.
+grant select, insert, update, delete on
+  public.profiles, public.roles, public.permissions, public.role_permissions,
+  public.user_roles, public.email_code_challenges, public.audit_logs
+  to service_role;
+
 -- ── Enable RLS ───────────────────────────────────────────────────────────────
 alter table public.profiles              enable row level security;
 alter table public.roles                 enable row level security;

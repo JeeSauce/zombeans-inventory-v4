@@ -27,11 +27,11 @@ additional_redirect_urls = ["http://localhost:3000/auth/callback"]
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
-enable_signup = false                 # accounts are created by Super Admin, not self-signup
+enable_signup = false                 # no public self-signup; accounts are created by Super Admin
 
 [auth.email]
-enable_signup = false
-enable_confirmations = true
+enable_signup = true                  # keeps the email provider available for login
+enable_confirmations = false          # admin-created users are pre-confirmed (email_confirm=true)
 secure_password_change = true
 
 [storage]
