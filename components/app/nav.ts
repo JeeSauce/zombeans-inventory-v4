@@ -1,4 +1,13 @@
-import { LayoutDashboard, Users, ScrollText, type LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  ScrollText,
+  Coffee,
+  Boxes,
+  Store,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 
 export interface NavItem {
   label: string;
@@ -8,10 +17,14 @@ export interface NavItem {
   permission?: string;
 }
 
-/** Phase 1 navigation. New sections are added as their modules land in later phases. */
+/** Navigation. New sections are added as their modules land in later phases. */
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Products", href: "/catalog/products", icon: Coffee, permission: "catalog.item.read" },
+  { label: "Inventory items", href: "/catalog/items", icon: Boxes, permission: "catalog.item.read" },
   { label: "Users", href: "/admin/users", icon: Users, permission: "users.manage" },
+  { label: "Branches", href: "/admin/branches", icon: Store, permission: "settings.manage" },
+  { label: "Settings", href: "/admin/settings", icon: Settings, permission: "settings.manage" },
   { label: "Audit log", href: "/admin/audit", icon: ScrollText, permission: "audit.read" },
 ];
 
