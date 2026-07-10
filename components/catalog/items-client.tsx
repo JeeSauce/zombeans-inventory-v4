@@ -137,7 +137,13 @@ function CreateItemDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="baseUnitId">Base unit</Label>
-              <select id="baseUnitId" name="baseUnitId" className={selectClass} required defaultValue="">
+              <select
+                id="baseUnitId"
+                name="baseUnitId"
+                className={selectClass}
+                required
+                defaultValue=""
+              >
                 <option value="" disabled>
                   Choose…
                 </option>
@@ -150,7 +156,12 @@ function CreateItemDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="purchaseUnitId">Purchase unit (optional)</Label>
-              <select id="purchaseUnitId" name="purchaseUnitId" className={selectClass} defaultValue="">
+              <select
+                id="purchaseUnitId"
+                name="purchaseUnitId"
+                className={selectClass}
+                defaultValue=""
+              >
                 <option value="">— same as base —</option>
                 {units.map((u) => (
                   <option key={u.id} value={u.id}>
@@ -161,7 +172,13 @@ function CreateItemDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="lowStockThreshold">Low-stock threshold</Label>
-              <Input id="lowStockThreshold" name="lowStockThreshold" type="number" step="0.0001" min="0" />
+              <Input
+                id="lowStockThreshold"
+                name="lowStockThreshold"
+                type="number"
+                step="0.0001"
+                min="0"
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="reorderLevel">Reorder level</Label>
@@ -174,7 +191,12 @@ function CreateItemDialog({
               Tracked in stock
             </label>
             <label className="flex items-center gap-2">
-              <input type="checkbox" name="isConsumable" defaultChecked className="accent-primary" />
+              <input
+                type="checkbox"
+                name="isConsumable"
+                defaultChecked
+                className="accent-primary"
+              />
               Consumable
             </label>
             <label className="flex items-center gap-2">
@@ -238,7 +260,9 @@ export function ItemsClient({
             <TableBody>
               {items.map((it) => (
                 <TableRow key={it.id}>
-                  <TableCell className="font-data text-muted-foreground text-xs">{it.sku}</TableCell>
+                  <TableCell className="font-data text-muted-foreground text-xs">
+                    {it.sku}
+                  </TableCell>
                   <TableCell className="font-medium">{it.name}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{TYPE_LABELS[it.itemType] ?? it.itemType}</Badge>

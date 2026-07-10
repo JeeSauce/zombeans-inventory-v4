@@ -196,10 +196,10 @@ describe("catalog RLS gating", () => {
   it("price.write is denied without permission", async () => {
     await expect(
       asUser(acting, ids.inventory, (c) =>
-        c.query(`insert into public.branch_prices (branch_id, product_id, price) values ($1, $2, 99)`, [
-          fx.commissary,
-          fx.productId,
-        ]),
+        c.query(
+          `insert into public.branch_prices (branch_id, product_id, price) values ($1, $2, 99)`,
+          [fx.commissary, fx.productId],
+        ),
       ),
     ).rejects.toThrow(/row-level security/i);
   });
@@ -239,7 +239,9 @@ describe("catalog RLS gating", () => {
   it("catalog.item.write lets the super admin create a category", async () => {
     await expect(
       asUser(acting, ids.super, (c) =>
-        c.query(`insert into public.categories (name, item_type) values ('rls-super-cat', 'drink')`),
+        c.query(
+          `insert into public.categories (name, item_type) values ('rls-super-cat', 'drink')`,
+        ),
       ),
     ).resolves.toBeDefined();
   });

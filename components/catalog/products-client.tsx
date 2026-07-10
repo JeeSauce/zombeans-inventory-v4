@@ -109,14 +109,25 @@ function CreateProductDialog({ units }: { units: UnitOption[] }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="productKind">Kind</Label>
-              <select id="productKind" name="productKind" className={selectClass} defaultValue="drink">
+              <select
+                id="productKind"
+                name="productKind"
+                className={selectClass}
+                defaultValue="drink"
+              >
                 <option value="drink">Drink</option>
                 <option value="food">Food</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="baseUnitId">Base unit</Label>
-              <select id="baseUnitId" name="baseUnitId" className={selectClass} required defaultValue="">
+              <select
+                id="baseUnitId"
+                name="baseUnitId"
+                className={selectClass}
+                required
+                defaultValue=""
+              >
                 <option value="" disabled>
                   Choose…
                 </option>
@@ -141,13 +152,7 @@ function CreateProductDialog({ units }: { units: UnitOption[] }) {
   );
 }
 
-function PricesDialog({
-  product,
-  branches,
-}: {
-  product: ProductRow;
-  branches: BranchOption[];
-}) {
+function PricesDialog({ product, branches }: { product: ProductRow; branches: BranchOption[] }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState<ProductActionState, FormData>(
     setBranchPricesAction.bind(null, product.id),
@@ -186,7 +191,10 @@ function PricesDialog({
           {branches.map((b) => {
             const existing = priceFor(b.id);
             return (
-              <div key={b.id} className="grid grid-cols-[1fr_auto] items-end gap-3 rounded-md border p-3">
+              <div
+                key={b.id}
+                className="grid grid-cols-[1fr_auto] items-end gap-3 rounded-md border p-3"
+              >
                 <div className="space-y-1">
                   <Label htmlFor={`price_${b.id}`} className="flex items-center gap-1.5">
                     {b.name}
@@ -228,21 +236,13 @@ function PricesDialog({
   );
 }
 
-function PriceCell({
-  price,
-  vat,
-}: {
-  price: BranchPrice | undefined;
-  vat: TaxConfig;
-}) {
+function PriceCell({ price, vat }: { price: BranchPrice | undefined; vat: TaxConfig }) {
   if (!price) return <span className="text-muted-foreground">—</span>;
   const t = computeLineTax(price.price, price.taxMode, vat);
   return (
     <span className="font-data">
       {formatPeso(t.gross)}
-      {t.applied && (
-        <span className="text-muted-foreground ml-1 text-[0.65rem]">incl. VAT</span>
-      )}
+      {t.applied && <span className="text-muted-foreground ml-1 text-[0.65rem]">incl. VAT</span>}
     </span>
   );
 }
@@ -274,7 +274,9 @@ export function ProductsClient({
       {products.length === 0 ? (
         <div className="text-muted-foreground rounded-lg border border-dashed p-10 text-center">
           No products yet.{" "}
-          {canWrite ? "Add a drink or food product to start pricing it." : "Ask an admin to add products."}
+          {canWrite
+            ? "Add a drink or food product to start pricing it."
+            : "Ask an admin to add products."}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border">

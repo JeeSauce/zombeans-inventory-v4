@@ -50,7 +50,12 @@ function CheckboxField({
 }) {
   return (
     <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" name={name} defaultChecked={defaultChecked} className="accent-primary" />
+      <input
+        type="checkbox"
+        name={name}
+        defaultChecked={defaultChecked}
+        className="accent-primary"
+      />
       {label}
     </label>
   );

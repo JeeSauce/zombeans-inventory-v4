@@ -40,7 +40,12 @@ describe("computeLineTax — critical scenario 20 (VAT only when enabled)", () =
 
 describe("parseTaxConfig", () => {
   it("reads the DB jsonb shape", () => {
-    const cfg = parseTaxConfig({ enabled: true, rate: 0.12, registered_name: "Zombeans", tin: "123" });
+    const cfg = parseTaxConfig({
+      enabled: true,
+      rate: 0.12,
+      registered_name: "Zombeans",
+      tin: "123",
+    });
     expect(cfg).toEqual({ enabled: true, rate: 0.12, registeredName: "Zombeans", tin: "123" });
   });
 

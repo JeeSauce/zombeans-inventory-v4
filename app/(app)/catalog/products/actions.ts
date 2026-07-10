@@ -20,12 +20,10 @@ export async function createProductAction(
   if (name.length < 2) return { error: "Enter a product name." };
   if (!baseUnitId) return { error: "Choose a base unit." };
 
-  const parsed = productSchema
-    .pick({ productKind: true, description: true })
-    .safeParse({
-      productKind: formData.get("productKind"),
-      description: formData.get("description"),
-    });
+  const parsed = productSchema.pick({ productKind: true, description: true }).safeParse({
+    productKind: formData.get("productKind"),
+    description: formData.get("description"),
+  });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const { productKind, description } = parsed.data;
 

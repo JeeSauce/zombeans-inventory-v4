@@ -86,7 +86,11 @@ export function VatSettingsClient({ vat }: { vat: TaxConfig }) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="registeredName">Registered name (optional)</Label>
-              <Input id="registeredName" name="registeredName" defaultValue={vat.registeredName ?? ""} />
+              <Input
+                id="registeredName"
+                name="registeredName"
+                defaultValue={vat.registeredName ?? ""}
+              />
             </div>
           </div>
 
@@ -102,7 +106,7 @@ export function VatSettingsClient({ vat }: { vat: TaxConfig }) {
           </div>
 
           <div className="bg-secondary/40 rounded-md border p-3 text-sm">
-            <p className="text-muted-foreground mb-1 text-xs font-medium uppercase tracking-wide">
+            <p className="text-muted-foreground mb-1 text-xs font-medium tracking-wide uppercase">
               Preview — a {formatPeso(100)} tax-exclusive price
             </p>
             {sample.applied ? (
@@ -112,7 +116,8 @@ export function VatSettingsClient({ vat }: { vat: TaxConfig }) {
               </p>
             ) : (
               <p className="font-data">
-                No tax applied — customer pays <span className="font-semibold">{formatPeso(100)}</span>
+                No tax applied — customer pays{" "}
+                <span className="font-semibold">{formatPeso(100)}</span>
               </p>
             )}
           </div>

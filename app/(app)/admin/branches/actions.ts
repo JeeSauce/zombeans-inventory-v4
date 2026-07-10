@@ -93,6 +93,7 @@ export async function updateBranchAction(
 
 function friendly(message: string): string {
   if (/branches_key_key|duplicate key/i.test(message)) return "That branch key is already in use.";
-  if (/branches_one_main/i.test(message)) return "Another branch is already set as the main branch.";
+  if (/branches_one_main/i.test(message))
+    return "Another branch is already set as the main branch.";
   return message.replace(/^.*?:\s*/, "");
 }

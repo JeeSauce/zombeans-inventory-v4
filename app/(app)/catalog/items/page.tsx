@@ -58,12 +58,7 @@ export default async function ItemsPage() {
           are generated automatically.
         </p>
       </div>
-      <ItemsClient
-        items={items}
-        categories={categories}
-        units={unitOptions}
-        canWrite={canWrite}
-      />
+      <ItemsClient items={items} categories={categories} units={unitOptions} canWrite={canWrite} />
     </div>
   );
 }
