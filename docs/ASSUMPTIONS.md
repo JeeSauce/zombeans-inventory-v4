@@ -20,3 +20,11 @@ Living log of decisions made where the spec left a minor detail unspecified. For
 | A-013 | 2026-07-10 | Timestamps stored in UTC (`timestamptz`); all display converts to Asia/Manila.                                                                                                                           | Correct TZ handling; single source of truth.                                        |
 
 Add new rows as decisions arise during implementation.
+
+## Phase 1 additions
+
+| ID    | Date       | Decision                                                                                                                                                                                             | Rationale                                                                                                        |
+| ----- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| A-014 | 2026-07-10 | Design tokens taken from the live site (zombeans.xyz): forest-green `#203222`, cream `#ede0d6`, amber `#e5c07b` primary, sage `#65845b`; Anton + Inter + JetBrains Mono. Dark default + cream light. | Owner supplied the live site as the reference; its palette/fonts are richer than the brand PNG. Mono suits data. |
+| A-015 | 2026-07-10 | Super Admin step-up enforced by an httpOnly signed marker cookie checked in middleware; a password-only session may reach only /verify until the code succeeds.                                      | Supabase issues a session on password success; the marker satisfies "no privileged session until verified."      |
+| A-016 | 2026-07-10 | New staff accounts are created pre-confirmed with a random temp password; the person sets their own via "Forgot password". Roles assigned at creation.                                               | No SMTP in local dev; avoids surfacing passwords. Invite-by-email can replace this once a mail provider exists.  |
