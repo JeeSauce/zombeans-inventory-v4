@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+/*
+  Zombeans design tokens — derived from assets/Zombeans Brand Guidelines v2.png.
+  Brand: Zombie Green #31E11A · Brain Pink #E7A8B9 · Coffee Bean Brown #A7632B ·
+         Dark Roast #1A1A14 · Soft White #F7F6F2 · Charcoal #2A2A2A.
+  Operational UI: restrained theme, readability first. Green is the ACCENT, not the surface.
+*/
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  /* Raw brand palette */
+  --color-zombie-green: #31e11a;
+  --color-brain-pink: #e7a8b9;
+  --color-coffee-brown: #a7632b;
+  --color-dark-roast: #1a1a14;
+  --color-soft-white: #f7f6f2;
+  --color-charcoal: #2a2a2a;
+
+  --radius: 0.625rem;
+}
+
+/* Semantic tokens (shadcn-compatible) — light theme */
+:root {
+  --background: var(--color-soft-white);
+  --foreground: var(--color-dark-roast);
+  --card: #ffffff;
+  --card-foreground: var(--color-dark-roast);
+  --popover: #ffffff;
+  --popover-foreground: var(--color-dark-roast);
+  --primary: var(--color-dark-roast);
+  --primary-foreground: var(--color-soft-white);
+  --accent: var(--color-zombie-green);
+  --accent-foreground: var(--color-dark-roast);
+  --secondary: #eceae4;
+  --secondary-foreground: var(--color-dark-roast);
+  --muted: #eceae4;
+  --muted-foreground: #6b6b60;
+  --border: #dedbd2;
+  --input: #dedbd2;
+  --ring: var(--color-zombie-green);
+  --destructive: #d6382f; /* Critical / negative inventory alerts */
+  --destructive-foreground: #ffffff;
+  --warning: #d98a1f;
+  --success: #2f8f2a;
+}
+
+/* Dark theme */
+.dark {
+  --background: var(--color-dark-roast);
+  --foreground: var(--color-soft-white);
+  --card: var(--color-charcoal);
+  --card-foreground: var(--color-soft-white);
+  --popover: var(--color-charcoal);
+  --popover-foreground: var(--color-soft-white);
+  --primary: var(--color-soft-white);
+  --primary-foreground: var(--color-dark-roast);
+  --accent: var(--color-zombie-green);
+  --accent-foreground: var(--color-dark-roast);
+  --secondary: #33332b;
+  --secondary-foreground: var(--color-soft-white);
+  --muted: #33332b;
+  --muted-foreground: #a3a294;
+  --border: #3a3a30;
+  --input: #3a3a30;
+  --ring: var(--color-zombie-green);
+  --destructive: #ef4d43;
+  --destructive-foreground: #ffffff;
+  --warning: #e0a13a;
+  --success: #4fb04a;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}

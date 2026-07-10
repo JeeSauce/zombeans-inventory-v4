@@ -1,0 +1,43 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next
+/.next/
+/out/
+next-env.d.ts
+
+# production
+/build
+
+# testing
+/coverage
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache
+
+# env — never commit real credentials
+.env
+.env*.local
+.env.development
+.env.staging
+.env.production
+
+# supabase
+/supabase/.branches
+/supabase/.temp
+**/supabase/.env
+
+# backups — never commit production data exports
+/backups/
+*.dump
+*.sql.gz
+
+# misc
+.DS_Store
+*.pem
+.vercel
+.idea
+*.tsbuildinfo

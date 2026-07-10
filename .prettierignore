@@ -1,0 +1,8 @@
+.next
+node_modules
+coverage
+playwright-report
+test-results
+supabase/migrations
+pnpm-lock.yaml
+package-lock.json
