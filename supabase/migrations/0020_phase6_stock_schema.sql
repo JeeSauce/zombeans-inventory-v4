@@ -204,4 +204,3 @@ create trigger set_updated_at before update on public.transfers
   for each row execute function public.tg_set_updated_at();
 create trigger set_updated_at before update on public.transfer_lines
   for each row execute function public.tg_set_updated_at();
-

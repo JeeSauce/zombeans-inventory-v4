@@ -47,7 +47,6 @@ create policy stock_requests_select on public.stock_requests
       or public.has_permission(auth.uid(), 'stock.transfer.receive')
     )
   );
-
 create policy stock_request_lines_select on public.stock_request_lines
   for select to authenticated
   using (
@@ -101,4 +100,3 @@ create policy inventory_alerts_select on public.inventory_alerts
       or public.has_permission(auth.uid(), 'stock.transfer.receive')
     )
   );
-

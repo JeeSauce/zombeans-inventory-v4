@@ -1,6 +1,7 @@
 # Phase 6 — Multi-branch Stock — Design Specification
 
-Date: 2026-07-13  
+Date: 2026-07-13
+
 Branch: `codex/phase-6-multi-branch-stock`
 
 ## Goal
