@@ -5,6 +5,52 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 3 — Ingredients, Suppliers & Purchasing — 2026-07-11
+
+Added
+
+- Purchasing + minimal receiving-scoped ledger-core schema (migrations 0010–0012): `suppliers`,
+  `supplier_items`, `supplier_prices` (SENSITIVE, append-only history), `purchase_orders` +
+  `purchase_order_lines`, `purchase_receipts` + `purchase_receipt_lines`, `supplier_returns` +
+  `supplier_return_lines`, `inventory_lots` (FEFO), `inventory_balances`, `stock_transactions`
+  (append-only ledger). New enums (`po_status`, `payment_status`, `stock_txn_type`, `txn_status`,
+  `lot_status`); human-reference sequences (`PO-…`, `RCV-…`, `RET-…`).
+- RLS on every purchasing table gated by `supplier.read/write`, `purchase.create/approve/receive`,
+  and the new `supplier_price.write` permission (super_admin only). Sensitive columns
+  (`purchase_order_lines.unit_cost`, `purchase_orders.subtotal/total`, `inventory_lots.unit_cost`,
+  `supplier_prices.price`) are granted to `authenticated` by explicit column-list omission — cost
+  is unreadable at the DB layer for non-`cost.read` roles, not merely hidden in the UI (rule 4).
+  `stock_transactions` and `inventory_lots` writes are revoked from `authenticated` entirely —
+  only the `SECURITY DEFINER` posting functions may write the ledger (rule 1, rule 6).
+- Functions: `next_po_reference()` / `next_receipt_reference()` / `next_return_reference()` /
+  `next_stock_txn_reference()`, `unit_factor_to_base()`, and the two posting RPCs —
+  `post_purchase_receipt()` (partial delivery, over-receipt guard, FEFO lot creation,
+  global-per-item weighted-average recompute, PO status transition) and `post_supplier_return()`
+  (removes stock at the lot's recorded cost; weighted-average unchanged). Both are idempotent on
+  their `idempotency_key` (rule 5) and append-only (rule 6).
+- `lib/purchasing/costing.ts` — TS twin of the weighted-average blend used by `post_purchase_receipt`
+  (scenario 7), covered by unit tests. Zod schemas (`lib/validation/purchasing.ts`).
+- Server actions + UI: Suppliers (list/detail, contact + terms), supplier items + price history
+  (sensitive, service-role admin client, `supplier_price.write` gated), purchase orders
+  (draft → submit → approve, auto-filled line cost from the supplier's latest price, payment
+  status), receiving (partial delivery, lot/expiry capture, damage/shortage flags — cost never
+  shown to the receiver), supplier returns (lot-scoped). Cost columns render only when the
+  viewer holds `cost.read`.
+- Sidebar footer updated to "Phase 3".
+
+Tests
+
+- 6 unit (`costing.test.ts` — weighted-average blend, scenario 7), 6 integration
+  (`purchasing.test.ts` — scenario 6 partial delivery + over-receipt guard, scenario 7
+  weighted-average blend + idempotent re-post, cost-column RLS denial for non-`cost.read` roles,
+  `supplier_price.write` denial to a manager, supplier return removes stock at lot cost without
+  moving the weighted-average), 4 Playwright e2e (`purchasing.spec.ts` — receiving vs. suppliers
+  access for inventory staff, orders vs. receiving access for branch manager, desktop sidebar
+  visibility per permission).
+
+Gate: critical scenarios **6** (partial delivery posts only accepted quantities, over-receipt
+blocked) and **7** (weighted-average blends correctly across receipts and is idempotent) pass.
+
 ### Phase 2 — Branches, Categories, Units & Catalog — 2026-07-11
 
 Added
