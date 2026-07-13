@@ -125,16 +125,28 @@ missing_qty`, `expiration_date`, `lot_number`, `actual_unit_cost` (sensitive). A
   Derived projection maintained by posting functions; may go negative (flagged Critical).
 - **stock_transactions** — `reference` (human), `type stock_txn_type`, `status txn_status`,
   `source_branch_id?`, `dest_branch_id?`, `reason`, `notes`, `created_by`, `approved_by`,
-  `confirmed_at`, `idempotency_key unique`, `correlation_id`, related-record refs. Append-only.
+  `confirmed_at`, `idempotency_key unique`, `correlation_id`, `production_order_id?`,
+  `transfer_id?`, and purchasing refs. Append-only.
 - **stock_transaction_lines** — `txn_id`, `item_id`, `qty numeric` (base unit), `unit_id`,
   `lot_id?`, `unit_cost_snapshot numeric` (sensitive).
-- **stock_requests** — `reference`, `requesting_branch_id`, `status`, notes, approval history.
-- **stock_request_lines** — `request_id`, `item_id`, `requested_qty`, `approved_qty`.
-- **transfers** — `reference`, `stock_request_id?`, `source_branch_id`, `dest_branch_id`,
-  `status transfer_status`, `popup_event_id?`, `idempotency_key`.
-- **transfer_lines** — `transfer_id`, `item_id`, `prepared/shipped/received/rejected/damaged/
-missing_qty`, `lot_id?`.
-- **transfer_discrepancies** — `transfer_line_id`, `type`, `qty`, `reason`, `resolution`.
+- **stock_requests** — human `reference`, `requesting_branch_id`, `status stock_request_status`,
+  notes, stable `idempotency_key`, requester, and manager review history.
+- **stock_request_lines** — `request_id`, item/base unit, positive `requested_qty`, bounded
+  `approved_qty`.
+- **transfers** — human `reference`, optional approved `stock_request_id`, source/destination,
+  `status transfer_status` (`prepared/in_transit/received/cancelled`), stable preparation and
+  receive idempotency keys, correlation ID, lifecycle actors/timestamps, and source/receive
+  transaction links.
+- **transfer_lines** — item/base unit and `prepared/shipped/received/rejected/damaged/missing_qty`;
+  database constraints prevent over-accounting.
+- **transfer_lot_allocations** — one row per FEFO source lot allocation, freezing allocated and
+  received quantity, source/destination lot links, lot metadata, expiration, and sensitive
+  `unit_cost_snapshot` for cost-preserving receiving.
+- **transfer_discrepancies** — transfer/line, rejected/damaged/missing type, quantity, reason,
+  open/resolved status, resolution, and lifecycle actors/timestamps.
+- **inventory_alerts** — item/branch, Critical severity, exact negative `qty_on_hand`, causing
+  stock transaction, reason, actor, and active/resolved lifecycle. Created only by posting
+  functions; active alerts are surfaced prominently on `/stock`.
 
 ## 7. Control
 

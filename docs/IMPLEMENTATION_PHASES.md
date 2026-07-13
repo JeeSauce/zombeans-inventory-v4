@@ -47,13 +47,13 @@ snapshots; costing dashboard (Super Admin only).
 Templates; orders; inputs/outputs; yield/waste; batches; expiration; FEFO; approvals.
 **Gate:** critical tests 2, 3, 4 pass.
 
-## Phase 6 — Multi-branch Stock ← next
+## Phase 6 — Multi-branch Stock
 
 Ledger; balances; stock-in/out (+ batch); requests; transfers; receiving; discrepancies;
 negative-inventory alerts.
 **Gate:** critical tests 5, 9, 10 pass.
 
-## Phase 7 — Recounts & Daily Operations
+## Phase 7 — Recounts & Daily Operations ← next
 
 Start-of-day recount; optional end-of-day; cycle counts; variances; adjustments; day closing;
 Super Admin reopening.
