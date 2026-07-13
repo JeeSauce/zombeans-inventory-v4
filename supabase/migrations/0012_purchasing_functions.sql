@@ -56,6 +56,7 @@ declare
   v_old_qty   numeric;
   v_old_avg   numeric;
   v_outstanding numeric;
+  v_lot_id    uuid;
 begin
   select * into v_receipt from public.purchase_receipts where id=p_receipt_id for update;
   if v_receipt.id is null then raise exception 'Receipt % not found', p_receipt_id; end if;
@@ -95,13 +96,14 @@ begin
 
     insert into public.inventory_lots
       (item_id, branch_id, lot_number, expiration_date, qty_remaining, unit_cost, status)
-    values (rl.item_id, v_main, rl.lot_number, rl.expiration_date, v_base_qty, v_base_cost, 'available');
+    values (rl.item_id, v_main, rl.lot_number, rl.expiration_date, v_base_qty, v_base_cost, 'available')
+    returning id into v_lot_id;
 
     insert into public.stock_transaction_lines
       (txn_id, item_id, qty, unit_id, lot_id, unit_cost_snapshot)
-    values (v_txn_id, rl.item_id, v_base_qty, rl.unit_id,
-      (select id from public.inventory_lots
-         where item_id=rl.item_id and branch_id=v_main order by created_at desc limit 1),
+    values (v_txn_id, rl.item_id, v_base_qty,
+      (select base_unit_id from public.inventory_items where id = rl.item_id),
+      v_lot_id,
       v_base_cost);
 
     insert into public.inventory_balances (item_id, branch_id, qty_on_hand, updated_at)
