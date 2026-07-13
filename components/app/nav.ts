@@ -13,6 +13,7 @@ import {
   BookOpen,
   Calculator,
   Factory,
+  Warehouse,
   type LucideIcon,
 } from "lucide-react";
 
@@ -67,6 +68,18 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/production",
     icon: Factory,
     permissions: ["production.create", "production.record", "production.confirm"],
+  },
+  {
+    label: "Stock",
+    href: "/stock",
+    icon: Warehouse,
+    permissions: [
+      "stock.in",
+      "stock.out",
+      "stock.transfer.prepare",
+      "stock.transfer.approve",
+      "stock.transfer.receive",
+    ],
   },
   { label: "Users", href: "/admin/users", icon: Users, permission: "users.manage" },
   { label: "Branches", href: "/admin/branches", icon: Store, permission: "settings.manage" },

@@ -69,7 +69,14 @@ erDiagram
     stock_requests ||--o{ stock_request_lines : lists
     stock_requests ||--o{ transfers : fulfilled_by
     transfers ||--o{ transfer_lines : ships
+    transfers ||--o{ stock_transactions : posts
+    transfer_lines ||--o{ transfer_lot_allocations : allocated_from
+    inventory_lots ||--o{ transfer_lot_allocations : source_or_destination
     transfers ||--o{ transfer_discrepancies : flags
+    transfer_lines ||--o{ transfer_discrepancies : explains
+    inventory_items ||--o{ inventory_alerts : warns_for
+    branches ||--o{ inventory_alerts : warns_at
+    stock_transactions ||--o{ inventory_alerts : causes
 
     %% ── Control ──
     branches ||--o{ recount_sessions : counted

@@ -5,6 +5,39 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 6 — Multi-branch Stock — 2026-07-13
+
+Added
+
+- Phase 6 schema/security/functions (migrations 0020–0022): human-referenced stock requests,
+  reviewed request lines, transfer lifecycle rows, per-source-lot cost allocations, receiving
+  discrepancies, Critical negative-inventory alerts, branch-scoped RLS, and definer-only writes.
+- Atomic, permission-checking, idempotent direct stock-in/out. Stock-out consumes eligible lots
+  FEFO and preserves any true negative projection with a Critical alert instead of clamping it.
+- Request creation/review and transfer preparation, manager approval/dispatch, and receiving.
+  Transfer dispatch consumes available/unexpired source lots FEFO; receiving preserves each lot's
+  historical cost/expiry and accepts one stable replay key.
+- Receiving accounting requires every shipped unit to be received, rejected, damaged, or missing;
+  non-received quantities create open reasoned discrepancies with a manager resolution path.
+- Stock overview, Critical alert and negative-balance display, direct stock forms, request review,
+  transfer prepare/detail/approve/receive/discrepancy UI, loading/empty/warning/error states,
+  permission-aware desktop/mobile navigation, shared Zod validation, and audit events.
+
+Tests
+
+- Critical scenario 5: a repeated receive returns the original destination transaction and leaves
+  destination lots/balance, ledger-line count, and discrepancy count unchanged.
+- Critical scenario 9: the existing real-Postgres sale-recipe trigger test continues to reject raw
+  inputs; Phase 6 adds no POS/sale recipe posting path.
+- Critical scenario 10: a stock-out beyond eligible lots leaves the exact negative balance and full
+  signed ledger quantity, creates one active Critical alert, and remains readable in the UI.
+- Additional real-Postgres coverage proves FEFO/expired exclusion, cross-branch cost preservation,
+  request review, lifecycle/permission guards, direct batch stock-in replay, RLS write denial, and
+  sensitive allocation-cost denial. Playwright covers Inventory/Manager/Production roles on
+  Chromium and Pixel 7.
+
+Gate: critical scenarios **5**, **9**, and **10** pass.
+
 ### Phase 5 — Production — 2026-07-13
 
 Added
