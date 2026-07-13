@@ -9,6 +9,7 @@ import {
   Truck,
   ClipboardList,
   PackageCheck,
+  Undo2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,6 +48,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/purchasing/receiving",
     icon: PackageCheck,
     permission: "purchase.receive",
+  },
+  {
+    label: "Returns",
+    href: "/purchasing/returns",
+    icon: Undo2,
+    permission: "supplier.write",
   },
   { label: "Users", href: "/admin/users", icon: Users, permission: "users.manage" },
   { label: "Branches", href: "/admin/branches", icon: Store, permission: "settings.manage" },
