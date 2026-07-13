@@ -27,15 +27,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { statusBadgeVariant, type PoStatus } from "@/lib/purchasing/po-status";
 
-export type PoStatus =
-  | "draft"
-  | "submitted"
-  | "approved"
-  | "partially_received"
-  | "fully_received"
-  | "closed"
-  | "cancelled";
+export { statusBadgeVariant } from "@/lib/purchasing/po-status";
+export type { PoStatus } from "@/lib/purchasing/po-status";
 
 export type PaymentStatus =
   "unpaid" | "partially_paid" | "paid" | "overdue" | "cancelled" | "refunded";
@@ -56,28 +51,6 @@ export interface OrderRow {
 
 const selectClass =
   "border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none";
-
-export function statusBadgeVariant(
-  status: PoStatus,
-): "default" | "secondary" | "outline" | "destructive" {
-  switch (status) {
-    case "draft":
-      return "secondary";
-    case "submitted":
-      return "outline";
-    case "approved":
-    case "fully_received":
-      return "default";
-    case "partially_received":
-      return "outline";
-    case "cancelled":
-      return "destructive";
-    case "closed":
-      return "secondary";
-    default:
-      return "secondary";
-  }
-}
 
 export function paymentBadgeVariant(
   status: PaymentStatus,

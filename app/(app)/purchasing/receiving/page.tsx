@@ -4,7 +4,7 @@ import { PackageCheck } from "lucide-react";
 import { getAuthContext, can } from "@/lib/auth/context";
 import { createClient } from "@/lib/supabase/server";
 import { formatHumanDate } from "@/lib/format";
-import { statusBadgeVariant, type PoStatus } from "@/components/purchasing/orders-client";
+import { statusBadgeVariant, type PoStatus } from "@/lib/purchasing/po-status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
