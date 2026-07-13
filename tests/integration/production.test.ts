@@ -1,6 +1,6 @@
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { assignRole, cleanupUsers, connect, createUser } from "./helpers/db";
+import { assignRole, connect, createUser } from "./helpers/db";
 
 const EMAIL_PATTERN = "%@production-phase5.test";
 const SKU_PATTERN = "PRODTEST-%";
@@ -9,6 +9,12 @@ let admin: Client;
 let acting: Client;
 const users = { super: "", production: "", manager: "", inventory: "" };
 const base = { unit: "", branch: "" };
+
+async function cleanupProductionUsers(client: Client): Promise<void> {
+  // These fixtures are never protected accounts, so ordinary cascades are sufficient. Avoid the
+  // shared cleanupUsers trigger toggle, which could weaken an unrelated parallel RLS assertion.
+  await client.query(`delete from auth.users where email like $1`, [EMAIL_PATTERN]);
+}
 
 async function runAsUserAndCommit<T>(
   userId: string,
@@ -197,24 +203,26 @@ async function recordScenario(
       `select id, item_id from public.production_order_inputs where production_order_id = $1`,
       [scenario.orderId],
     );
-    for (const input of inputs.rows) {
-      const index = scenario.inputItemIds.indexOf(input.item_id);
-      await client.query(
-        `update public.production_order_inputs set
-           actual_consumed_qty = $2, waste_qty = $3
-         where id = $1`,
-        [input.id, actualConsumed[index], waste[index]],
-      );
-    }
     await client.query(
-      `update public.production_orders set
-         status = 'awaiting_confirmation', actual_output_qty = 9,
-         output_lot_number = $2, production_date = (now() at time zone 'Asia/Manila')::date,
-         expiration_date = (now() at time zone 'Asia/Manila')::date + 7,
-         recorded_at = now(), recorded_by = $3, submitted_at = now(), submitted_by = $3,
-         updated_by = $3
-       where id = $1`,
-      [scenario.orderId, `BATCH-${scenario.tag}`, users.production],
+      `select public.record_production_actuals(
+         $1, 9, $2, (now() at time zone 'Asia/Manila')::date,
+         (now() at time zone 'Asia/Manila')::date + 7, null, $3::jsonb
+       )`,
+      [
+        scenario.orderId,
+        `BATCH-${scenario.tag}`,
+        JSON.stringify(
+          inputs.rows.map((input) => {
+            const index = scenario.inputItemIds.indexOf(input.item_id);
+            return {
+              id: input.id,
+              actual_consumed_qty: actualConsumed[index],
+              waste_qty: waste[index],
+              notes: null,
+            };
+          }),
+        ),
+      ],
     );
   });
 }
@@ -248,7 +256,7 @@ beforeAll(async () => {
   admin = await connect();
   acting = await connect();
   await cleanupProductionTestData(admin);
-  await cleanupUsers(admin, EMAIL_PATTERN);
+  await cleanupProductionUsers(admin);
 
   users.super = await createUser(admin, "super@production-phase5.test");
   users.production = await createUser(admin, "staff@production-phase5.test");
@@ -266,7 +274,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (admin) {
     await cleanupProductionTestData(admin);
-    await cleanupUsers(admin, EMAIL_PATTERN);
+    await cleanupProductionUsers(admin);
     await admin.end();
   }
   if (acting) await acting.end();
