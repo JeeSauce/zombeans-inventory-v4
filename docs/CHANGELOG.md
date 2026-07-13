@@ -5,6 +5,36 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 5 — Production — 2026-07-13
+
+Added
+
+- Production schema and security (migrations 0016–0019): recipe-backed templates, immutable
+  planned orders, frozen planned/actual input rows, lifecycle guards, Main-only posting, and RLS
+  for `production.create`, `production.record`, and `production.confirm`.
+- Protected order planning attaches the active production recipe version and its immutable
+  activation cost snapshot. Atomic actual recording submits complete input/output, waste,
+  batch, production-date, and expiration data in one database transaction.
+- `post_production_completion()` locks the order, consumes only available/unexpired lots FEFO,
+  records signed consumption/waste/output ledger lines, updates lots and balances, creates the
+  output lot, and completes the order in one idempotent transaction.
+- Production list, template creation, stable-token order creation, actual recording, yield/waste
+  warnings, manager confirmation, loading/empty/error states, permission-aware navigation, and
+  audited Server Actions. Cost fields are never loaded or rendered for production operators.
+
+Tests
+
+- Critical scenario 2: earlier eligible lots are consumed first; expired/quarantined lots are
+  skipped, and expired-only availability raises without posting.
+- Critical scenario 3: a later insufficient input rolls back every lot/balance/header/line/output
+  and leaves the order awaiting confirmation.
+- Critical scenario 4: replay returns the original output transaction and does not deduct or add
+  inventory twice.
+- Browser permissions cover Production Staff create/record without confirm, Branch Manager
+  confirmation, Inventory Staff denial, and cost absence on desktop/mobile.
+
+Gate: critical scenarios **2**, **3**, and **4** pass.
+
 ### Phase 4 — Recipes & Product Costing — 2026-07-13
 
 Added

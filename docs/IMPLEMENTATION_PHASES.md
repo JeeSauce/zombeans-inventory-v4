@@ -42,12 +42,12 @@ Recipe versions; multi-level recipes; variant recipes; modifier deductions; pack
 snapshots; costing dashboard (Super Admin only).
 **Gate:** critical tests 1, 8 pass.
 
-## Phase 5 — Production ← next
+## Phase 5 — Production
 
 Templates; orders; inputs/outputs; yield/waste; batches; expiration; FEFO; approvals.
 **Gate:** critical tests 2, 3, 4 pass.
 
-## Phase 6 — Multi-branch Stock
+## Phase 6 — Multi-branch Stock ← next
 
 Ledger; balances; stock-in/out (+ batch); requests; transfers; receiving; discrepancies;
 negative-inventory alerts.
