@@ -23,8 +23,7 @@ Normalized Postgres schema, built up by numbered migrations (schema → constrai
 production_consumption, production_output, waste, manual_adjustment, purchase_receiving,
 recount_adjustment, supplier_return, pos_sale, pos_refund) ·
 `txn_status` (draft, pending_approval, approved, rejected, posted, reversed) ·
-`production_status` (draft, submitted, approved, in_progress, awaiting_output, completed,
-partially_completed, failed, cancelled) ·
+`production_status` (draft, in_progress, awaiting_confirmation, completed, cancelled) ·
 `transfer_status` (requested, approved, prepared, in_transit, received, reconciled, cancelled) ·
 `po_status` (draft, submitted, approved, partially_received, fully_received, closed, cancelled) ·
 `payment_status` (unpaid, partially_paid, paid, overdue, cancelled, refunded) ·
@@ -86,25 +85,36 @@ missing_qty`, `expiration_date`, `lot_number`, `actual_unit_cost` (sensitive). A
 
 ## 4. Recipes & Costing
 
-- **recipes** — `output_item_id`, `name`, `active`.
-- **recipe_versions** — `recipe_id`, `version int`, `effective_date`, `output_qty`, `output_unit`,
-  `expected_yield`, `expected_waste`, `active bool`, `prep_notes`. Only one active per recipe.
+- **recipes** — `name`, `kind` (production/sale/modifier), `output_item_id`, exactly one optional
+  catalog target appropriate to the kind (`product_id`, `variant_id`, `modifier_option_id`),
+  `active`, audit/version/soft-delete columns. Partial unique indexes permit only one live recipe
+  for each production output or catalog target.
+- **recipe_versions** — `recipe_id`, `version_number`, `effective_date`, `output_qty`,
+  `output_unit_id`, `expected_yield_pct`, `expected_waste_pct`, `is_active`, `activated_at/by`,
+  `prep_notes`. A partial unique index enforces one active version. Activated rows are immutable;
+  revisions require a new draft version.
 - **recipe_lines** — `recipe_version_id`, `input_item_id`, `qty numeric` (base unit),
-  `is_packaging bool`. Multi-level: an input item may itself be a produced sub-product.
-- **cost_snapshots** — `recipe_version_id` or txn ref, computed cost breakdown (sensitive),
-  `computed_at`. Immutable once attached to a finalized record.
+  `is_packaging bool`. One input per version; multi-level costing follows an input item's active
+  production recipe. Sale/modifier lines are restricted to prepared items and packaging.
+- **cost_snapshots** — `recipe_version_id`, `snapshot_reason`, ingredient/packaging/waste/total/
+  unit costs, `effective_output_qty`, item-level `breakdown jsonb`, `computed_at`, `created_by`.
+  SENSITIVE and append-only; authenticated users have no direct table access and read through a
+  `cost.read`-checking function only.
 
 ## 5. Production
 
-- **production_templates** — seeded editable templates (Latin Mix, …, Espresso 2kg→20L),
-  `output_item_id`, default recipe, batch-code format, shelf life, storage.
-- **production_orders** — `reference`, `template_id?`, `recipe_version_id`, `status`,
-  planned/actual times, `target_output`, `acceptable_yield_min/max`, `responsible_id`,
-  `idempotency_key`, notes.
-- **production_inputs** — `order_id`, `item_id`, `planned_qty`, `actual_qty`, `lot_id?`.
-- **production_outputs** — `order_id`, `item_id`, `planned_qty`, `actual_qty`, `waste_qty`,
-  `expiration_date`.
-- **production_batches** — `reference/qr`, `output_id`, `produced_qty`, `expiration_date`.
+- **production_templates** — `name`, one `production` `recipe_id`,
+  `default_batch_multiplier`, optional `default_expiry_days`, instructions, active/audit/soft-delete
+  fields. A live recipe has at most one live template.
+- **production_orders** — human `reference`, `template_id`, frozen `recipe_version_id` and protected
+  `cost_snapshot_id`, Main `branch_id`, output item/unit, `status production_status`, batch
+  multiplier, planned/actual output, output lot/production/expiration dates, stable unique
+  `idempotency_key`, correlation ID, lifecycle actors/timestamps, and output transaction link.
+- **production_order_inputs** — frozen `recipe_line_id`, item/base unit and `planned_qty`, with
+  recorded `actual_consumed_qty`, `waste_qty`, and notes. One row per planned recipe input.
+- `stock_transactions.production_order_id` relates the separate consumption, waste, and output
+  ledger movements. Their shared correlation ID and deterministic derived idempotency keys keep
+  completion atomic and replay-safe.
 
 ## 6. Inventory Core
 

@@ -40,18 +40,24 @@ erDiagram
 
     %% ── Recipes & Costing ──
     inventory_items ||--o{ recipes : produces
+    products ||--o| recipes : sale_recipe
+    product_variants ||--o| recipes : variant_recipe
+    modifier_options ||--o| recipes : deduction_recipe
     recipes ||--o{ recipe_versions : versioned
     recipe_versions ||--o{ recipe_lines : consumes
     inventory_items ||--o{ recipe_lines : input
     recipe_versions ||--o{ cost_snapshots : costed
 
     %% ── Production ──
-    production_templates ||--o{ production_orders : templated
-    production_orders ||--o{ production_inputs : uses
-    production_orders ||--o{ production_outputs : yields
-    production_outputs ||--o{ production_batches : creates
+    recipes ||--o| production_templates : templated_as
+    production_templates ||--o{ production_orders : plans
+    recipe_versions ||--o{ production_orders : frozen_for
+    cost_snapshots ||--o{ production_orders : valued_by
+    production_orders ||--o{ production_order_inputs : consumes
+    recipe_lines ||--o{ production_order_inputs : copied_from
+    inventory_items ||--o{ production_order_inputs : input
+    production_orders ||--o{ stock_transactions : posts
     inventory_items ||--o{ inventory_lots : tracked_as
-    production_batches ||--o{ inventory_lots : lot_source
 
     %% ── Inventory core ──
     branches ||--o{ inventory_balances : holds

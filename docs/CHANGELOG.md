@@ -5,6 +5,66 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 5 — Production — 2026-07-13
+
+Added
+
+- Production schema and security (migrations 0016–0019): recipe-backed templates, immutable
+  planned orders, frozen planned/actual input rows, lifecycle guards, Main-only posting, and RLS
+  for `production.create`, `production.record`, and `production.confirm`.
+- Protected order planning attaches the active production recipe version and its immutable
+  activation cost snapshot. Atomic actual recording submits complete input/output, waste,
+  batch, production-date, and expiration data in one database transaction.
+- `post_production_completion()` locks the order, consumes only available/unexpired lots FEFO,
+  records signed consumption/waste/output ledger lines, updates lots and balances, creates the
+  output lot, and completes the order in one idempotent transaction.
+- Production list, template creation, stable-token order creation, actual recording, yield/waste
+  warnings, manager confirmation, loading/empty/error states, permission-aware navigation, and
+  audited Server Actions. Cost fields are never loaded or rendered for production operators.
+
+Tests
+
+- Critical scenario 2: earlier eligible lots are consumed first; expired/quarantined lots are
+  skipped, and expired-only availability raises without posting.
+- Critical scenario 3: a later insufficient input rolls back every lot/balance/header/line/output
+  and leaves the order awaiting confirmation.
+- Critical scenario 4: replay returns the original output transaction and does not deduct or add
+  inventory twice.
+- Browser permissions cover Production Staff create/record without confirm, Branch Manager
+  confirmation, Inventory Staff denial, and cost absence on desktop/mobile.
+
+Gate: critical scenarios **2**, **3**, and **4** pass.
+
+### Phase 4 — Recipes & Product Costing — 2026-07-13
+
+Added
+
+- Versioned recipe schema (migrations 0013–0015): production, product/variant sale, and modifier
+  recipes; normalized lines; one active version per recipe; immutable activated versions and
+  append-only cost snapshots.
+- Protected recursive cost engine using active production recipes and weighted-average leaf
+  costs, with yield, waste, consumable packaging, reusable-container exclusion, cycle/depth
+  protection, and atomic activation snapshots.
+- Defense-in-depth cost controls: recipe composition uses `recipe.read/write` RLS, while costs are
+  available only through `cost.read`-checking `SECURITY DEFINER` RPCs. Authenticated users have no
+  direct `cost_snapshots` table privilege.
+- Recipe list/detail UI with draft versioning, normalized input editor, activation workflow, and
+  permission-gated cost breakdown. Super-Admin-only costing dashboard adds branch selling price,
+  gross profit, margin, food-cost percentage, and markup.
+- Recipes and Costing navigation, loading/empty/error states, Zod validation, audited server
+  actions, pure TypeScript costing helpers, and Phase 4 unit/integration/e2e coverage.
+
+Tests
+
+- Critical scenario 1: non-cost roles are denied protected cost functions and snapshot table
+  access; cost UI/navigation remains absent.
+- Critical scenario 8: activation cost snapshots remain unchanged after weighted-average input
+  costs move, while live recalculation reflects the new cost.
+- Phase 4 scenario 9 gate: sale/modifier recipes reject raw or finished sellable inputs; recursive
+  raw → sub-product → sale costing and cycle rejection are covered at the database layer.
+
+Gate: critical scenarios **1** and **8** pass; the recipe-model portion of scenario **9** passes.
+
 ### Phase 3 — Ingredients, Suppliers & Purchasing — 2026-07-11
 
 Added
