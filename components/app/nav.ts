@@ -14,6 +14,7 @@ import {
   Calculator,
   Factory,
   Warehouse,
+  CalendarClock,
   type LucideIcon,
 } from "lucide-react";
 
@@ -79,6 +80,17 @@ export const NAV_ITEMS: NavItem[] = [
       "stock.transfer.prepare",
       "stock.transfer.approve",
       "stock.transfer.receive",
+    ],
+  },
+  {
+    label: "Daily Ops",
+    href: "/daily-ops",
+    icon: CalendarClock,
+    permissions: [
+      "recount.perform",
+      "recount.confirm",
+      "recount.confirm_unusual",
+      "closure.reopen",
     ],
   },
   { label: "Users", href: "/admin/users", icon: Users, permission: "users.manage" },

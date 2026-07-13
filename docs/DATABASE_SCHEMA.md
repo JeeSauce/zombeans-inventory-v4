@@ -27,6 +27,11 @@ recount_adjustment, supplier_return, pos_sale, pos_refund) ·
 `transfer_status` (requested, approved, prepared, in_transit, received, reconciled, cancelled) ·
 `po_status` (draft, submitted, approved, partially_received, fully_received, closed, cancelled) ·
 `payment_status` (unpaid, partially_paid, paid, overdue, cancelled, refunded) ·
+`recount_session_type` (start_of_day, end_of_day, cycle) ·
+`recount_session_status` (draft, submitted, adjusted, closed) ·
+`recount_adjustment_reason` (counting_error, unrecorded_movement, spoilage, damage, theft_or_loss,
+found_stock, unit_conversion, other) ·
+`day_close_status` (closed, reopened) · `day_close_event_type` (close, reopen) ·
 `notif_severity` (info, warning, urgent, critical).
 
 ---
@@ -126,7 +131,7 @@ missing_qty`, `expiration_date`, `lot_number`, `actual_unit_cost` (sensitive). A
 - **stock_transactions** — `reference` (human), `type stock_txn_type`, `status txn_status`,
   `source_branch_id?`, `dest_branch_id?`, `reason`, `notes`, `created_by`, `approved_by`,
   `confirmed_at`, `idempotency_key unique`, `correlation_id`, `production_order_id?`,
-  `transfer_id?`, and purchasing refs. Append-only.
+  `transfer_id?`, purchasing refs, and `day_reopen_event_id?` attribution. Append-only.
 - **stock_transaction_lines** — `txn_id`, `item_id`, `qty numeric` (base unit), `unit_id`,
   `lot_id?`, `unit_cost_snapshot numeric` (sensitive).
 - **stock_requests** — human `reference`, `requesting_branch_id`, `status stock_request_status`,
@@ -150,14 +155,24 @@ missing_qty`, `expiration_date`, `lot_number`, `actual_unit_cost` (sensitive). A
 
 ## 7. Control
 
-- **recount_sessions** — `reference`, `branch_id`, `kind` (start_of_day/end_of_day/full/category/
-  high_value/cycle), `status`, `business_date`, `performed_by`.
-- **recount_lines** — `session_id`, `item_id`, `expected_qty` (computed), `physical_qty`,
-  `variance_qty` (generated).
-- **recount_variances** — `recount_line_id`, `classification`, `reason`, `variance_value`
-  (via cost snapshot, sensitive), `escalated bool`.
-- **daily_operational_closures** — (`branch_id`, `business_date`) pk, `closed_by`, `closed_at`,
-  `reopened_by?`, `reopen_reason?`, `reopened_at?`.
+- **recount_sessions** — human `reference`, branch/business date, `type`
+  (start_of_day/end_of_day/cycle), lifecycle `status` (draft/submitted/adjusted/closed), frozen
+  `snapshot_at`, unique open/submit idempotency keys, unusual decision/signals, lifecycle actors and
+  timestamps, and optional `day_reopen_event_id`. A partial unique index permits only one
+  draft/submitted session per branch/date/type.
+- **recount_lines** — session/item/base unit plus frozen formula components
+  (`opening + received + production_output - transfers_out - usage - stock_out - waste`),
+  `expected_qty`, entered `physical_qty`, four-decimal `variance_qty`, protected
+  `unit_cost_snapshot`, protected `variance_value_snapshot`, and frozen unusual signals. Database
+  checks enforce both formulas.
+- **variance_adjustments** — one human-referenced, reason-typed adjustment per session, stable
+  idempotency key, link to its append-only `recount_adjustment` stock transaction, protected total
+  frozen variance value, unusual flag, posting actor/time, and optional reopen-event attribution.
+- **daily_operational_closures** — one mutable current-state row per branch/business date with a
+  human reference, closed/reopened state, transition counts, latest actors/times, and latest event.
+- **day_close_events** — append-only close/reopen transition history with human reference, stable
+  idempotency key, actor, mandatory reopen reason, timestamp, and one linked cost-free
+  `audit_logs` row. Reopen events attribute every later stock/recount change explicitly.
 - **approval_requests** — `entity_type`, `entity_id`, `rule_key`, `status`, `required_role/perm`.
 - **approval_history** — `approval_request_id`, `actor_id`, `decision`, `reason`, `at`.
 
