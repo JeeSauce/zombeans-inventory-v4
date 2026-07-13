@@ -74,11 +74,14 @@ Branch: `codex/phase-6-multi-branch-stock`
 
 - A clean local rebuild applies migrations 0001–0022; the development seed prints all four expected
   role accounts.
-- Vitest: 89/89 unit and real-database integration tests pass.
+- Vitest: 42/42 unit and 47/47 real-database integration tests pass (89 total).
 - Production build succeeds with all 25 application routes, including four `/stock` routes.
 - Focused Phase 6 Playwright: 4/4 Chromium and 4/4 Pixel 7 assertions pass.
-- The complete formatting, lint, type, unit, build, bundle scan, integration, and Playwright matrix
-  is run again immediately before publication.
+- Prettier write/check, ESLint, strict TypeScript, unit tests, production build, bundle scan,
+  integration tests, and the full Playwright suite all pass.
+- Bundle scan confirms the local service-role key is absent from all 82 generated client files.
+- Full Playwright: 41 assertions pass across Chromium and Pixel 7, with 5 intentional mobile skips
+  for legacy desktop-sidebar-only checks.
 
 ## Known limitations / deferred
 
