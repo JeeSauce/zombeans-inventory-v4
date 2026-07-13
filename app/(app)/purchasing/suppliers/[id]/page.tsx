@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getAuthContext, can } from "@/lib/auth/context";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   SupplierDetailClient,
   type SupplierItemRow,
@@ -57,12 +58,19 @@ export default async function SupplierDetailPage({ params }: { params: Promise<{
   >();
   if (canReadPrice && rawSupplierItems.length > 0) {
     const supplierItemIds = rawSupplierItems.map((si) => si.id);
-    const { data: pricesData } = await supabase
+    // Sensitive column: `price` is granted-omitted from `authenticated` (migration 0011), so this
+    // read must go through the service-role admin client. The `canReadPrice` guard above is the gate.
+    const admin = createAdminClient();
+    const { data: pricesData, error: pricesError } = await admin
       .from("supplier_prices")
       .select("supplier_item_id, price, currency, effective_date")
       .in("supplier_item_id", supplierItemIds)
       .order("effective_date", { ascending: false })
       .order("created_at", { ascending: false });
+
+    if (pricesError) {
+      throw new Error(`Failed to load supplier prices: ${pricesError.message}`);
+    }
 
     type RawPrice = {
       supplier_item_id: string;

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePermission } from "@/lib/permissions";
 import { writeAudit } from "@/lib/audit";
 import { supplierItemSchema, supplierPriceSchema } from "@/lib/validation/purchasing";
@@ -60,7 +61,6 @@ export async function addSupplierPriceAction(
     effectiveDate: fd.get("effectiveDate") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  const supabase = await createClient();
   const row: Record<string, unknown> = {
     supplier_item_id: parsed.data.supplierItemId,
     price: parsed.data.price,
@@ -68,7 +68,10 @@ export async function addSupplierPriceAction(
     created_by: user.id,
   };
   if (parsed.data.effectiveDate) row.effective_date = parsed.data.effectiveDate;
-  const { error } = await supabase.from("supplier_prices").insert(row);
+  // Sensitive column: `price` is granted-omitted from `authenticated` (migration 0011), so this
+  // write must go through the service-role admin client. requirePermission() above is the gate.
+  const admin = createAdminClient();
+  const { error } = await admin.from("supplier_prices").insert(row);
   if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
   await writeAudit({
     actorId: user.id,
