@@ -7,6 +7,7 @@ import {
   Store,
   Settings,
   Truck,
+  ClipboardList,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,6 +34,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/purchasing/suppliers",
     icon: Truck,
     permission: "supplier.read",
+  },
+  {
+    label: "Purchase orders",
+    href: "/purchasing/orders",
+    icon: ClipboardList,
+    permission: "purchase.create",
   },
   { label: "Users", href: "/admin/users", icon: Users, permission: "users.manage" },
   { label: "Branches", href: "/admin/branches", icon: Store, permission: "settings.manage" },
