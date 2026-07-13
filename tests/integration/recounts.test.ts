@@ -11,7 +11,6 @@ const users = { inventory: "", manager: "", super: "", production: "" };
 const base = { unit: "", branch: "", main: "", today: "" };
 const items = { ordinary: "", unusual: "" };
 const seedTxnIds: string[] = [];
-let ordinarySessionId = "";
 let closureId = "";
 let reopenEventId = "";
 
@@ -280,7 +279,6 @@ describe.sequential("Phase 7 recounts and daily operations", () => {
 
     const openKey = crypto.randomUUID();
     const opened = await openRecount(users.inventory, "start_of_day", [], openKey);
-    ordinarySessionId = opened.id;
     const replayedOpen = await openRecount(users.inventory, "start_of_day", [], openKey);
     expect(replayedOpen.id).toBe(opened.id);
     expect(replayedOpen.already_exists).toBe(true);
