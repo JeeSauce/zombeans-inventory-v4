@@ -6,6 +6,7 @@ import {
   Boxes,
   Store,
   Settings,
+  Truck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -26,6 +27,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/catalog/items",
     icon: Boxes,
     permission: "catalog.item.read",
+  },
+  {
+    label: "Suppliers",
+    href: "/purchasing/suppliers",
+    icon: Truck,
+    permission: "supplier.read",
   },
   { label: "Users", href: "/admin/users", icon: Users, permission: "users.manage" },
   { label: "Branches", href: "/admin/branches", icon: Store, permission: "settings.manage" },
