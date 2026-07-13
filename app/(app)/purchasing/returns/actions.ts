@@ -11,6 +11,59 @@ export type ReturnActionState = { error?: string; info?: string };
 
 const supplierIdSchema = z.string().uuid("Choose a supplier");
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+type ParsedReturnLine = {
+  itemId: string;
+  lotId: string;
+  qty: number;
+  reason?: string | null;
+};
+
+/**
+ * Insert the return lines for `returnId`, post the return, write the audit entry, and
+ * revalidate. Shared by the happy path (fresh return) and the idempotency-replay path
+ * (reconciling a stale draft parent from a failed first attempt) so both post identical line
+ * shapes through identical logic.
+ */
+async function insertLinesAndPost(
+  supabase: SupabaseClient,
+  args: {
+    returnId: string;
+    ref: string;
+    parsedLines: ParsedReturnLine[];
+    userId: string;
+  },
+): Promise<ReturnActionState> {
+  const { returnId, ref, parsedLines, userId } = args;
+
+  const { error: rlErr } = await supabase.from("supplier_return_lines").insert(
+    parsedLines.map((l) => ({
+      return_id: returnId,
+      item_id: l.itemId,
+      lot_id: l.lotId,
+      qty: l.qty,
+      reason: l.reason ?? null,
+    })),
+  );
+  if (rlErr) return { error: rlErr.message.replace(/^.*?:\s*/, "") };
+
+  const { error: postErr } = await supabase.rpc("post_supplier_return", {
+    p_return_id: returnId,
+  });
+  if (postErr) return { error: postErr.message.replace(/^.*?:\s*/, "") };
+
+  await writeAudit({
+    actorId: userId,
+    action: "return.posted",
+    entityType: "supplier_return",
+    entityId: returnId,
+    after: { reference: ref },
+  });
+  revalidatePath("/purchasing/returns");
+  return { info: `Posted ${ref}.` };
+}
+
 /**
  * Create + post a supplier return. Follows the Task 9 receiving action shape: create the parent
  * row, then the line rows, then call the SECURITY DEFINER posting RPC and surface its error.
@@ -49,12 +102,7 @@ export async function createReturnAction(
   if (lotErr || !lotRows) return { error: "Could not look up the selected lots." };
   const itemByLot = new Map(lotRows.map((l) => [l.id as string, l.item_id as string]));
 
-  const parsedLines: {
-    itemId: string;
-    lotId: string;
-    qty: number;
-    reason?: string | null;
-  }[] = [];
+  const parsedLines: ParsedReturnLine[] = [];
   for (const row of rows) {
     const itemId = itemByLot.get(row.lotId);
     if (!itemId) return { error: "One of the selected lots is no longer available." };
@@ -84,49 +132,46 @@ export async function createReturnAction(
     .single();
   if (rErr) {
     if (/duplicate key|already exists|unique/i.test(rErr.message) || rErr.code === "23505") {
-      // Replay of a resubmitted form (e.g. dropped response after the first insert succeeded).
-      // The parent row already exists for this idempotency key — do not insert new lines,
-      // just ensure it's posted (the RPC is idempotent) and report success.
+      // Duplicate idempotency_key. Look up the existing parent row to decide what happened:
       const { data: existing, error: existingErr } = await supabase
         .from("supplier_returns")
-        .select("id, reference")
+        .select("id, reference, status")
         .eq("idempotency_key", idempotencyKey)
         .single();
+      // No row for THIS idempotency key — the 23505 came from some other unique constraint
+      // (e.g. a `reference` race). Not a replay; surface the original insert error.
       if (existingErr || !existing) return { error: rErr.message.replace(/^.*?:\s*/, "") };
 
-      const { error: replayPostErr } = await supabase.rpc("post_supplier_return", {
-        p_return_id: existing.id,
-      });
-      if (replayPostErr) return { error: replayPostErr.message.replace(/^.*?:\s*/, "") };
+      if (existing.status === "posted") {
+        // True replay of a completed submission (e.g. dropped response after success).
+        // Nothing to do — do not insert lines, do not re-post.
+        return { info: "This return was already recorded." };
+      }
 
-      return { info: "This return was already recorded." };
+      // Draft parent left behind by a failed first attempt (the posting RPC raised, e.g.
+      // lot-qty-exceeded). Nothing was ever posted for this key, so it's safe to discard the
+      // stale lines and reconcile with the corrected quantities from this request, then
+      // complete the post.
+      const { error: delErr } = await supabase
+        .from("supplier_return_lines")
+        .delete()
+        .eq("return_id", existing.id);
+      if (delErr) return { error: delErr.message.replace(/^.*?:\s*/, "") };
+
+      return insertLinesAndPost(supabase, {
+        returnId: existing.id,
+        ref: existing.reference as string,
+        parsedLines,
+        userId: user.id,
+      });
     }
     return { error: rErr.message.replace(/^.*?:\s*/, "") };
   }
 
-  const { error: rlErr } = await supabase.from("supplier_return_lines").insert(
-    parsedLines.map((l) => ({
-      return_id: ret.id,
-      item_id: l.itemId,
-      lot_id: l.lotId,
-      qty: l.qty,
-      reason: l.reason ?? null,
-    })),
-  );
-  if (rlErr) return { error: rlErr.message.replace(/^.*?:\s*/, "") };
-
-  const { error: postErr } = await supabase.rpc("post_supplier_return", {
-    p_return_id: ret.id,
+  return insertLinesAndPost(supabase, {
+    returnId: ret.id,
+    ref: ref as string,
+    parsedLines,
+    userId: user.id,
   });
-  if (postErr) return { error: postErr.message.replace(/^.*?:\s*/, "") };
-
-  await writeAudit({
-    actorId: user.id,
-    action: "return.posted",
-    entityType: "supplier_return",
-    entityId: ret.id,
-    after: { reference: ref },
-  });
-  revalidatePath("/purchasing/returns");
-  return { info: `Posted ${ref}.` };
 }

@@ -11,6 +11,72 @@ const num = (v: FormDataEntryValue | null) => {
   return s ? Number(s) : 0;
 };
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+type ParsedLine = {
+  poLineId: string;
+  accepted: number;
+  rejected: number;
+  damaged: number;
+  missing: number;
+  delivered: number;
+  lot: string | null;
+  expiry: string | null;
+  outstanding: number;
+};
+
+/**
+ * Insert the receipt lines for `receiptId`, post the receipt, write the audit entry, and
+ * revalidate. Shared by the happy path (fresh receipt) and the idempotency-replay path
+ * (reconciling a stale draft parent from a failed first attempt) so both post identical line
+ * shapes through identical logic.
+ */
+async function insertLinesAndPost(
+  supabase: SupabaseClient,
+  args: {
+    receiptId: string;
+    poId: string;
+    ref: string;
+    parsed: ParsedLine[];
+    userId: string;
+  },
+): Promise<ReceiveActionState> {
+  const { receiptId, poId, ref, parsed, userId } = args;
+
+  const { error: rlErr } = await supabase.from("purchase_receipt_lines").insert(
+    parsed
+      .filter((p) => p.delivered > 0 || p.missing > 0)
+      .map((p) => ({
+        receipt_id: receiptId,
+        po_line_id: p.poLineId,
+        delivered_qty: p.delivered,
+        accepted_qty: p.accepted,
+        rejected_qty: p.rejected,
+        damaged_qty: p.damaged,
+        missing_qty: p.missing,
+        lot_number: p.lot,
+        expiration_date: p.expiry,
+      })),
+  );
+  if (rlErr) return { error: rlErr.message.replace(/^.*?:\s*/, "") };
+
+  const { error: postErr } = await supabase.rpc("post_purchase_receipt", {
+    p_receipt_id: receiptId,
+  });
+  if (postErr) return { error: postErr.message.replace(/^.*?:\s*/, "") };
+
+  await writeAudit({
+    actorId: userId,
+    action: "receipt.posted",
+    entityType: "purchase_receipt",
+    entityId: receiptId,
+    after: { reference: ref },
+  });
+  revalidatePath("/purchasing/receiving");
+  revalidatePath(`/purchasing/orders/${poId}`);
+  return { info: `Received ${ref}.` };
+}
+
 export async function submitReceiptAction(
   poId: string,
   _p: ReceiveActionState,
@@ -25,7 +91,7 @@ export async function submitReceiptAction(
     .eq("po_id", poId);
   if (linesErr || !lines?.length) return { error: "Could not load the order lines." };
 
-  const parsed = lines.map((l) => ({
+  const parsed: ParsedLine[] = lines.map((l) => ({
     poLineId: l.id as string,
     accepted: num(fd.get(`accepted_${l.id}`)),
     rejected: num(fd.get(`rejected_${l.id}`)),
@@ -66,56 +132,48 @@ export async function submitReceiptAction(
     .single();
   if (rErr) {
     if (/duplicate key|already exists|unique/i.test(rErr.message) || rErr.code === "23505") {
-      // Replay of a resubmitted form (e.g. dropped response after the first insert succeeded).
-      // The parent row already exists for this idempotency key — do not insert new lines,
-      // just ensure it's posted (the RPC is idempotent) and report success.
+      // Duplicate idempotency_key. Look up the existing parent row to decide what happened:
       const { data: existing, error: existingErr } = await supabase
         .from("purchase_receipts")
-        .select("id, reference")
+        .select("id, reference, status")
         .eq("idempotency_key", idempotencyKey)
         .single();
+      // No row for THIS idempotency key — the 23505 came from some other unique constraint
+      // (e.g. a `reference` race). Not a replay; surface the original insert error.
       if (existingErr || !existing) return { error: rErr.message.replace(/^.*?:\s*/, "") };
 
-      const { error: replayPostErr } = await supabase.rpc("post_purchase_receipt", {
-        p_receipt_id: existing.id,
-      });
-      if (replayPostErr) return { error: replayPostErr.message.replace(/^.*?:\s*/, "") };
+      if (existing.status === "posted") {
+        // True replay of a completed submission (e.g. dropped response after success).
+        // Nothing to do — do not insert lines, do not re-post.
+        return { info: "This delivery was already recorded." };
+      }
 
-      return { info: "This delivery was already recorded." };
+      // Draft parent left behind by a failed first attempt (the posting RPC raised, e.g.
+      // over-receipt or lot-qty-exceeded). Nothing was ever posted for this key, so it's safe
+      // to discard the stale lines and reconcile with the corrected quantities from this
+      // request, then complete the post.
+      const { error: delErr } = await supabase
+        .from("purchase_receipt_lines")
+        .delete()
+        .eq("receipt_id", existing.id);
+      if (delErr) return { error: delErr.message.replace(/^.*?:\s*/, "") };
+
+      return insertLinesAndPost(supabase, {
+        receiptId: existing.id,
+        poId,
+        ref: existing.reference as string,
+        parsed,
+        userId: user.id,
+      });
     }
     return { error: rErr.message.replace(/^.*?:\s*/, "") };
   }
 
-  const { error: rlErr } = await supabase.from("purchase_receipt_lines").insert(
-    parsed
-      .filter((p) => p.delivered > 0 || p.missing > 0)
-      .map((p) => ({
-        receipt_id: receipt.id,
-        po_line_id: p.poLineId,
-        delivered_qty: p.delivered,
-        accepted_qty: p.accepted,
-        rejected_qty: p.rejected,
-        damaged_qty: p.damaged,
-        missing_qty: p.missing,
-        lot_number: p.lot,
-        expiration_date: p.expiry,
-      })),
-  );
-  if (rlErr) return { error: rlErr.message.replace(/^.*?:\s*/, "") };
-
-  const { error: postErr } = await supabase.rpc("post_purchase_receipt", {
-    p_receipt_id: receipt.id,
+  return insertLinesAndPost(supabase, {
+    receiptId: receipt.id,
+    poId,
+    ref: ref as string,
+    parsed,
+    userId: user.id,
   });
-  if (postErr) return { error: postErr.message.replace(/^.*?:\s*/, "") };
-
-  await writeAudit({
-    actorId: user.id,
-    action: "receipt.posted",
-    entityType: "purchase_receipt",
-    entityId: receipt.id,
-    after: { reference: ref },
-  });
-  revalidatePath("/purchasing/receiving");
-  revalidatePath(`/purchasing/orders/${poId}`);
-  return { info: `Received ${ref}.` };
 }
