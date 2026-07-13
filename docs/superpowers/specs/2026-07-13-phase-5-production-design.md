@@ -65,13 +65,13 @@ non-positive output or negative actual quantities.
 
 ## Lifecycle and authorization
 
-| Action | Required permission | Status transition |
-| --- | --- | --- |
-| Create template/order | `production.create` | new order is `draft` |
-| Start and record actuals | `production.record` | `draft → in_progress` |
-| Submit for confirmation | `production.record` | `in_progress → awaiting_confirmation` |
-| Confirm and post | `production.confirm` | `awaiting_confirmation → completed` |
-| Cancel before posting | `production.create` | draft/in-progress/awaiting → cancelled |
+| Action                   | Required permission  | Status transition                      |
+| ------------------------ | -------------------- | -------------------------------------- |
+| Create template/order    | `production.create`  | new order is `draft`                   |
+| Start and record actuals | `production.record`  | `draft → in_progress`                  |
+| Submit for confirmation  | `production.record`  | `in_progress → awaiting_confirmation`  |
+| Confirm and post         | `production.confirm` | `awaiting_confirmation → completed`    |
+| Cancel before posting    | `production.create`  | draft/in-progress/awaiting → cancelled |
 
 Server Actions check permissions and validation. RLS is the backstop for reads and pre-post
 mutations. A trigger rejects invalid direct status transitions and all mutation after terminal

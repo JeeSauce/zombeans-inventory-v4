@@ -1,9 +1,5 @@
 export type ProductionStatus =
-  | "draft"
-  | "in_progress"
-  | "awaiting_confirmation"
-  | "completed"
-  | "cancelled";
+  "draft" | "in_progress" | "awaiting_confirmation" | "completed" | "cancelled";
 
 export function productionStatusVariant(
   status: ProductionStatus,

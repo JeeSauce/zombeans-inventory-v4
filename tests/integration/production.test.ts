@@ -40,11 +40,15 @@ async function cleanupProductionTestData(client: Client): Promise<void> {
   await client.query(
     `alter table public.production_order_inputs disable trigger guard_production_input`,
   );
-  await client.query(`alter table public.cost_snapshots disable trigger cost_snapshots_append_only`);
+  await client.query(
+    `alter table public.cost_snapshots disable trigger cost_snapshots_append_only`,
+  );
   await client.query(
     `alter table public.recipe_versions disable trigger guard_activated_recipe_version`,
   );
-  await client.query(`alter table public.recipe_lines disable trigger guard_activated_recipe_lines`);
+  await client.query(
+    `alter table public.recipe_lines disable trigger guard_activated_recipe_lines`,
+  );
   try {
     await client.query(`
       update public.production_orders set
@@ -70,36 +74,54 @@ async function cleanupProductionTestData(client: Client): Promise<void> {
         select id from public.production_templates where name like 'ProdTest %'
       )`);
     await client.query(`delete from public.production_templates where name like 'ProdTest %'`);
-    await client.query(`
+    await client.query(
+      `
       delete from public.inventory_lots where item_id in (
         select id from public.inventory_items where sku like $1
-      )`, [SKU_PATTERN]);
-    await client.query(`
+      )`,
+      [SKU_PATTERN],
+    );
+    await client.query(
+      `
       delete from public.inventory_balances where item_id in (
         select id from public.inventory_items where sku like $1
-      )`, [SKU_PATTERN]);
-    await client.query(`
+      )`,
+      [SKU_PATTERN],
+    );
+    await client.query(
+      `
       delete from public.cost_snapshots where recipe_version_id in (
         select rv.id from public.recipe_versions rv
         join public.recipes r on r.id = rv.recipe_id
         join public.inventory_items ii on ii.id = r.output_item_id
         where ii.sku like $1
-      )`, [SKU_PATTERN]);
-    await client.query(`
+      )`,
+      [SKU_PATTERN],
+    );
+    await client.query(
+      `
       delete from public.recipes where output_item_id in (
         select id from public.inventory_items where sku like $1
-      )`, [SKU_PATTERN]);
+      )`,
+      [SKU_PATTERN],
+    );
     await client.query(`delete from public.inventory_items where sku like $1`, [SKU_PATTERN]);
   } finally {
-    await client.query(`alter table public.production_orders enable trigger guard_production_order`);
+    await client.query(
+      `alter table public.production_orders enable trigger guard_production_order`,
+    );
     await client.query(
       `alter table public.production_order_inputs enable trigger guard_production_input`,
     );
-    await client.query(`alter table public.cost_snapshots enable trigger cost_snapshots_append_only`);
+    await client.query(
+      `alter table public.cost_snapshots enable trigger cost_snapshots_append_only`,
+    );
     await client.query(
       `alter table public.recipe_versions enable trigger guard_activated_recipe_version`,
     );
-    await client.query(`alter table public.recipe_lines enable trigger guard_activated_recipe_lines`);
+    await client.query(
+      `alter table public.recipe_lines enable trigger guard_activated_recipe_lines`,
+    );
   }
 }
 
@@ -409,10 +431,9 @@ describe("critical scenario 4 — duplicate completion is idempotent", () => {
     await recordScenario(scenario, [5], [1]);
 
     const first = await runAsUserAndCommit(users.manager, (client) =>
-      client.query<{ txn_id: string }>(
-        `select public.post_production_completion($1) txn_id`,
-        [scenario.orderId],
-      ),
+      client.query<{ txn_id: string }>(`select public.post_production_completion($1) txn_id`, [
+        scenario.orderId,
+      ]),
     );
     const before = await admin.query<{
       input_qty: string;
@@ -430,10 +451,9 @@ describe("critical scenario 4 — duplicate completion is idempotent", () => {
       [scenario.orderId, inputLot, scenario.outputItemId, base.branch],
     );
     const second = await runAsUserAndCommit(users.manager, (client) =>
-      client.query<{ txn_id: string }>(
-        `select public.post_production_completion($1) txn_id`,
-        [scenario.orderId],
-      ),
+      client.query<{ txn_id: string }>(`select public.post_production_completion($1) txn_id`, [
+        scenario.orderId,
+      ]),
     );
     const after = await admin.query(
       `select

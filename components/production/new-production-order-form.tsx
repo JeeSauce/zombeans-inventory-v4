@@ -61,7 +61,13 @@ export function NewProductionOrderForm({
           )}
           <div className="space-y-2">
             <Label htmlFor="templateId">Production template</Label>
-            <select id="templateId" name="templateId" className={selectClass} required defaultValue="">
+            <select
+              id="templateId"
+              name="templateId"
+              className={selectClass}
+              required
+              defaultValue=""
+            >
               <option value="" disabled>
                 Choose a template…
               </option>

@@ -12,6 +12,7 @@ import {
   Undo2,
   BookOpen,
   Calculator,
+  Factory,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,6 +22,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Permission required to see this item; undefined = always visible to any signed-in user. */
   permission?: string;
+  /** Any matching permission reveals the item when several roles share the destination. */
+  permissions?: string[];
 }
 
 /** Navigation. New sections are added as their modules land in later phases. */
@@ -59,6 +62,12 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { label: "Recipes", href: "/recipes", icon: BookOpen, permission: "recipe.read" },
   { label: "Costing", href: "/costing", icon: Calculator, permission: "cost.read" },
+  {
+    label: "Production",
+    href: "/production",
+    icon: Factory,
+    permissions: ["production.create", "production.record", "production.confirm"],
+  },
   { label: "Users", href: "/admin/users", icon: Users, permission: "users.manage" },
   { label: "Branches", href: "/admin/branches", icon: Store, permission: "settings.manage" },
   { label: "Settings", href: "/admin/settings", icon: Settings, permission: "settings.manage" },
@@ -66,5 +75,12 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 export function visibleNav(permissions: string[]): NavItem[] {
-  return NAV_ITEMS.filter((i) => !i.permission || permissions.includes(i.permission));
+  return NAV_ITEMS.filter(
+    (item) =>
+      (!item.permission && !item.permissions) ||
+      (item.permission ? permissions.includes(item.permission) : false) ||
+      (item.permissions
+        ? item.permissions.some((permission) => permissions.includes(permission))
+        : false),
+  );
 }

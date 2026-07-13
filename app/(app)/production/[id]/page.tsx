@@ -42,7 +42,11 @@ type RawInput = {
   unit: { code: string } | null;
 };
 
-export default async function ProductionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProductionDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
   const ctx = await getAuthContext();
   const canRecord = can("production.record", ctx.permissions);

@@ -12,10 +12,7 @@ import {
   type ProductionActionState,
 } from "@/app/(app)/production/actions";
 import { formatHumanDate, formatHumanDateTime } from "@/lib/format";
-import {
-  productionStatusVariant,
-  type ProductionStatus,
-} from "@/lib/production/status";
+import { productionStatusVariant, type ProductionStatus } from "@/lib/production/status";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -135,7 +132,8 @@ export function ProductionDetailClient({
               {order.status.replaceAll("_", " ")}
             </Badge>
             <span className="text-muted-foreground text-sm">
-              Recipe version {order.recipeVersion} · planned {order.plannedOutputQty} {order.unitCode}
+              Recipe version {order.recipeVersion} · planned {order.plannedOutputQty}{" "}
+              {order.unitCode}
             </span>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -306,7 +304,12 @@ export function ProductionDetailClient({
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="notes">Notes (optional)</Label>
-                  <Input id="notes" name="notes" maxLength={1000} defaultValue={order.notes ?? ""} />
+                  <Input
+                    id="notes"
+                    name="notes"
+                    maxLength={1000}
+                    defaultValue={order.notes ?? ""}
+                  />
                 </div>
               </>
             ) : (
@@ -316,7 +319,8 @@ export function ProductionDetailClient({
                   {order.actualOutputQty ?? "—"} {order.unitCode}
                 </p>
                 <p>
-                  <span className="text-muted-foreground">Batch:</span> {order.outputLotNumber ?? "—"}
+                  <span className="text-muted-foreground">Batch:</span>{" "}
+                  {order.outputLotNumber ?? "—"}
                 </p>
                 <p>
                   <span className="text-muted-foreground">Produced:</span>{" "}

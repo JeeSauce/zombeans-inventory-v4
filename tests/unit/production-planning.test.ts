@@ -7,13 +7,7 @@ import {
 
 describe("production planning", () => {
   it("scales output and normalized input quantities to four decimals", () => {
-    expect(
-      scaleProductionPlan(
-        10,
-        [{ itemId: "coffee", unitId: "g", qty: 1 / 3 }],
-        2,
-      ),
-    ).toEqual({
+    expect(scaleProductionPlan(10, [{ itemId: "coffee", unitId: "g", qty: 1 / 3 }], 2)).toEqual({
       plannedOutputQty: 20,
       lines: [{ itemId: "coffee", unitId: "g", qty: 1 / 3, plannedQty: 0.6667 }],
     });

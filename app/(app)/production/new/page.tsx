@@ -43,8 +43,8 @@ export default async function NewProductionOrderPage() {
         <p className="eyebrow text-xs">Production</p>
         <h1 className="font-display mt-1 text-3xl">New production order</h1>
         <p className="text-muted-foreground mt-1">
-          The active recipe version, normalized inputs, and historical snapshot are frozen when
-          this order is created.
+          The active recipe version, normalized inputs, and historical snapshot are frozen when this
+          order is created.
         </p>
       </div>
       <NewProductionOrderForm templates={templates} idempotencyKey={randomUUID()} />

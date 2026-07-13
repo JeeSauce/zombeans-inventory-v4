@@ -9,10 +9,7 @@ import {
   createProductionTemplateAction,
   type ProductionActionState,
 } from "@/app/(app)/production/actions";
-import {
-  productionStatusVariant,
-  type ProductionStatus,
-} from "@/lib/production/status";
+import { productionStatusVariant, type ProductionStatus } from "@/lib/production/status";
 import { formatHumanDateTime } from "@/lib/format";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -263,7 +260,9 @@ export function ProductionListClient({
                     {order.plannedOutputQty} {order.unitCode}
                   </TableCell>
                   <TableCell className="font-data text-right">
-                    {order.actualOutputQty === null ? "—" : `${order.actualOutputQty} ${order.unitCode}`}
+                    {order.actualOutputQty === null
+                      ? "—"
+                      : `${order.actualOutputQty} ${order.unitCode}`}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-right text-xs">
                     {formatHumanDateTime(order.createdAt)}

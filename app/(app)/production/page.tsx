@@ -42,31 +42,35 @@ export default async function ProductionPage() {
   if (!canView) redirect("/dashboard");
 
   const supabase = await createClient();
-  const [{ data: templatesData }, { data: ordersData }, { data: recipesData }, { data: versionsData }] =
-    await Promise.all([
-      supabase
-        .from("production_templates")
-        .select(
-          "id, name, recipe_id, default_batch_multiplier, default_expiry_days, recipe:recipes(name, output_item:inventory_items(name, sku))",
-        )
-        .eq("active", true)
-        .is("deleted_at", null)
-        .order("name"),
-      supabase
-        .from("production_orders")
-        .select(
-          "id, reference, status, planned_output_qty, actual_output_qty, created_at, template:production_templates(name), output_item:inventory_items!production_orders_output_item_id_fkey(name, sku), output_unit:units!production_orders_output_unit_id_fkey(code)",
-        )
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("recipes")
-        .select("id, name, output_item:inventory_items(name, sku)")
-        .eq("kind", "production")
-        .eq("active", true)
-        .is("deleted_at", null)
-        .order("name"),
-      supabase.from("recipe_versions").select("recipe_id").eq("is_active", true),
-    ]);
+  const [
+    { data: templatesData },
+    { data: ordersData },
+    { data: recipesData },
+    { data: versionsData },
+  ] = await Promise.all([
+    supabase
+      .from("production_templates")
+      .select(
+        "id, name, recipe_id, default_batch_multiplier, default_expiry_days, recipe:recipes(name, output_item:inventory_items(name, sku))",
+      )
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("name"),
+    supabase
+      .from("production_orders")
+      .select(
+        "id, reference, status, planned_output_qty, actual_output_qty, created_at, template:production_templates(name), output_item:inventory_items!production_orders_output_item_id_fkey(name, sku), output_unit:units!production_orders_output_unit_id_fkey(code)",
+      )
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("recipes")
+      .select("id, name, output_item:inventory_items(name, sku)")
+      .eq("kind", "production")
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("name"),
+    supabase.from("recipe_versions").select("recipe_id").eq("is_active", true),
+  ]);
 
   const templates: ProductionTemplateRow[] = (
     (templatesData as unknown as RawTemplate[] | null) ?? []
@@ -89,8 +93,7 @@ export default async function ProductionPage() {
       outputSku: order.output_item?.sku ?? "—",
       unitCode: order.output_unit?.code ?? "unit",
       plannedOutputQty: Number(order.planned_output_qty),
-      actualOutputQty:
-        order.actual_output_qty === null ? null : Number(order.actual_output_qty),
+      actualOutputQty: order.actual_output_qty === null ? null : Number(order.actual_output_qty),
       createdAt: order.created_at,
     }),
   );
@@ -99,7 +102,9 @@ export default async function ProductionPage() {
     ((versionsData as { recipe_id: string }[] | null) ?? []).map((version) => version.recipe_id),
   );
   const templatedRecipeIds = new Set(
-    ((templatesData as unknown as RawTemplate[] | null) ?? []).map((template) => template.recipe_id),
+    ((templatesData as unknown as RawTemplate[] | null) ?? []).map(
+      (template) => template.recipe_id,
+    ),
   );
   type RawRecipe = { id: string; name: string; output_item: { name: string; sku: string } | null };
   const recipeOptions: ProductionRecipeOption[] = (
