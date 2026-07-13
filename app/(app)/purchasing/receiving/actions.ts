@@ -48,7 +48,7 @@ export async function submitReceiptAction(
   const hasShortage = parsed.some((p) => p.missing > 0 || p.accepted < p.outstanding);
 
   const { data: ref } = await supabase.rpc("next_receipt_reference");
-  const idempotencyKey = crypto.randomUUID();
+  const idempotencyKey = (fd.get("idempotencyKey") as string) || crypto.randomUUID();
   const { data: receipt, error: rErr } = await supabase
     .from("purchase_receipts")
     .insert({
@@ -64,7 +64,27 @@ export async function submitReceiptAction(
     })
     .select("id")
     .single();
-  if (rErr) return { error: rErr.message.replace(/^.*?:\s*/, "") };
+  if (rErr) {
+    if (/duplicate key|already exists|unique/i.test(rErr.message) || rErr.code === "23505") {
+      // Replay of a resubmitted form (e.g. dropped response after the first insert succeeded).
+      // The parent row already exists for this idempotency key — do not insert new lines,
+      // just ensure it's posted (the RPC is idempotent) and report success.
+      const { data: existing, error: existingErr } = await supabase
+        .from("purchase_receipts")
+        .select("id, reference")
+        .eq("idempotency_key", idempotencyKey)
+        .single();
+      if (existingErr || !existing) return { error: rErr.message.replace(/^.*?:\s*/, "") };
+
+      const { error: replayPostErr } = await supabase.rpc("post_purchase_receipt", {
+        p_receipt_id: existing.id,
+      });
+      if (replayPostErr) return { error: replayPostErr.message.replace(/^.*?:\s*/, "") };
+
+      return { info: "This delivery was already recorded." };
+    }
+    return { error: rErr.message.replace(/^.*?:\s*/, "") };
+  }
 
   const { error: rlErr } = await supabase.from("purchase_receipt_lines").insert(
     parsed

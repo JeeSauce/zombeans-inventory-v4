@@ -69,7 +69,7 @@ export async function createReturnAction(
   }
 
   const { data: ref } = await supabase.rpc("next_return_reference");
-  const idempotencyKey = crypto.randomUUID();
+  const idempotencyKey = (fd.get("idempotencyKey") as string) || crypto.randomUUID();
 
   const { data: ret, error: rErr } = await supabase
     .from("supplier_returns")
@@ -82,7 +82,27 @@ export async function createReturnAction(
     })
     .select("id")
     .single();
-  if (rErr) return { error: rErr.message.replace(/^.*?:\s*/, "") };
+  if (rErr) {
+    if (/duplicate key|already exists|unique/i.test(rErr.message) || rErr.code === "23505") {
+      // Replay of a resubmitted form (e.g. dropped response after the first insert succeeded).
+      // The parent row already exists for this idempotency key — do not insert new lines,
+      // just ensure it's posted (the RPC is idempotent) and report success.
+      const { data: existing, error: existingErr } = await supabase
+        .from("supplier_returns")
+        .select("id, reference")
+        .eq("idempotency_key", idempotencyKey)
+        .single();
+      if (existingErr || !existing) return { error: rErr.message.replace(/^.*?:\s*/, "") };
+
+      const { error: replayPostErr } = await supabase.rpc("post_supplier_return", {
+        p_return_id: existing.id,
+      });
+      if (replayPostErr) return { error: replayPostErr.message.replace(/^.*?:\s*/, "") };
+
+      return { info: "This return was already recorded." };
+    }
+    return { error: rErr.message.replace(/^.*?:\s*/, "") };
+  }
 
   const { error: rlErr } = await supabase.from("supplier_return_lines").insert(
     parsedLines.map((l) => ({

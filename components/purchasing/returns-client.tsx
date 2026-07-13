@@ -148,6 +148,7 @@ function CreateReturnDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [rowKeys, setRowKeys] = useState<string[]>(() => [`row-${nextRowKey++}`]);
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [state, formAction] = useActionState<ReturnActionState, FormData>(createReturnAction, {});
 
   useEffect(() => {
@@ -155,6 +156,7 @@ function CreateReturnDialog({
       toast.success(state.info);
       setOpen(false);
       setRowKeys([`row-${nextRowKey++}`]);
+      setIdempotencyKey(crypto.randomUUID());
     }
   }, [state]);
 
@@ -174,6 +176,7 @@ function CreateReturnDialog({
           <DialogTitle>New supplier return</DialogTitle>
         </DialogHeader>
         <form action={formAction} className="space-y-4">
+          <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
           {state.error && (
             <Alert variant="destructive">
               <AlertDescription>{state.error}</AlertDescription>

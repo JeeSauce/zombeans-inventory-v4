@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -148,6 +148,7 @@ export function ReceivingClient({
   loadError?: boolean;
 }) {
   const router = useRouter();
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [state, formAction] = useActionState<ReceiveActionState, FormData>(
     submitReceiptAction.bind(null, po.id),
     {},
@@ -204,6 +205,7 @@ export function ReceivingClient({
 
   return (
     <form action={formAction} className="space-y-4">
+      <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
       {state.error && (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>
