@@ -92,9 +92,10 @@ open/submit keys, snapshot time, actors/timestamps, unusual summary, and optiona
 event attribution. Types are `start_of_day`, `end_of_day`, and `cycle`; statuses are `draft`,
 `submitted`, `adjusted`, and `closed`.
 
-Full start/end sessions snapshot every active, trackable item allowed at the branch. Raw ingredients
-are excluded outside a branch configured to hold raw stock. Cycle sessions require an explicit,
-nonempty, duplicate-free item list and snapshot only those items.
+Full start/end sessions snapshot every active, trackable item in the branch's stock universe: an
+item with a branch balance row, lot, or posted ledger history. Raw ingredients are excluded outside
+a branch configured to hold raw stock. Cycle sessions require an explicit, nonempty, duplicate-free
+item list and may select an allowed item before its first branch movement.
 
 `recount_lines` stores the opening and movement components, frozen expected quantity, nullable
 physical quantity, variance quantity, unusual-signal codes, and sensitive unit-cost/variance-value
