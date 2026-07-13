@@ -43,6 +43,20 @@ async function insertLinesAndPost(
 ): Promise<ReceiveActionState> {
   const { receiptId, poId, ref, parsed, userId } = args;
 
+  const hasDamage = parsed.some((p) => p.damaged > 0);
+  const hasShortage = parsed.some((p) => p.missing > 0 || p.accepted < p.outstanding);
+
+  const { error: flagsErr } = await supabase
+    .from("purchase_receipts")
+    .update({
+      has_damage: hasDamage,
+      has_shortage: hasShortage,
+      needs_review: hasDamage || hasShortage,
+      updated_by: userId,
+    })
+    .eq("id", receiptId);
+  if (flagsErr) return { error: flagsErr.message.replace(/^.*?:\s*/, "") };
+
   const { error: rlErr } = await supabase.from("purchase_receipt_lines").insert(
     parsed
       .filter((p) => p.delivered > 0 || p.missing > 0)
@@ -110,11 +124,11 @@ export async function submitReceiptAction(
   )
     return { error: "Enter at least one received quantity." };
 
-  const hasDamage = parsed.some((p) => p.damaged > 0);
-  const hasShortage = parsed.some((p) => p.missing > 0 || p.accepted < p.outstanding);
-
   const { data: ref } = await supabase.rpc("next_receipt_reference");
   const idempotencyKey = (fd.get("idempotencyKey") as string) || crypto.randomUUID();
+  // has_damage / has_shortage / needs_review are set authoritatively by insertLinesAndPost
+  // (from the current request's parsed lines) immediately after this insert, so the
+  // fresh-insert defaults below are only a transient placeholder.
   const { data: receipt, error: rErr } = await supabase
     .from("purchase_receipts")
     .insert({
@@ -122,9 +136,9 @@ export async function submitReceiptAction(
       po_id: poId,
       received_by: user.id,
       idempotency_key: idempotencyKey,
-      has_damage: hasDamage,
-      has_shortage: hasShortage,
-      needs_review: hasDamage || hasShortage,
+      has_damage: false,
+      has_shortage: false,
+      needs_review: false,
       created_by: user.id,
       updated_by: user.id,
     })
