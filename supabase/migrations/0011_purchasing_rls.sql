@@ -20,6 +20,9 @@ grant select, insert, update, delete on
   public.stock_transactions, public.stock_transaction_lines
   to authenticated;
 
+-- ── Definer-only ledger tables: revoke all write access from authenticated ─────
+revoke insert, update, delete on public.inventory_balances, public.stock_transactions from authenticated;
+
 -- ── Sensitive-cost tables: grant by column list, omitting the cost column ─────
 -- supplier_prices: omit price
 grant select (id, supplier_item_id, currency, effective_date, created_at, created_by)
@@ -47,13 +50,12 @@ grant delete on public.purchase_order_lines to authenticated;
 -- inventory_lots.unit_cost, stock_transaction_lines.unit_cost_snapshot,
 -- supplier_returns.payable_adjustment are covered by the table-wide grants above BUT are sensitive;
 -- revoke those columns explicitly is impossible after a table grant, so re-grant by column list:
-revoke select, insert, update on public.inventory_lots from authenticated;
+revoke select, insert, update, delete on public.inventory_lots from authenticated;
 grant select (id, item_id, branch_id, lot_number, received_date, expiration_date, qty_remaining,
   status, created_at, updated_at, version) on public.inventory_lots to authenticated;
--- (no insert/update for authenticated — lots are written by definer functions only)
-grant delete on public.inventory_lots to authenticated;
+-- (no insert/update/delete for authenticated — lots are written by definer functions only)
 
-revoke select, insert, update on public.stock_transaction_lines from authenticated;
+revoke select, insert, update, delete on public.stock_transaction_lines from authenticated;
 grant select (id, txn_id, item_id, qty, unit_id, lot_id, created_at)
   on public.stock_transaction_lines to authenticated;
 
