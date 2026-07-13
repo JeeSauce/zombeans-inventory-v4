@@ -55,7 +55,9 @@ Permissions use `resource.action` slugs. Examples:
 | Prepare transfer / receive transfer |     ✅      |   approve    |     ❌      |     ✅      |
 | Approve transfer                    |     ✅      |      ✅      |     ❌      |     ❌      |
 | Perform recount                     |     ✅      |      ✅      |     ❌      |     ✅      |
-| Confirm recount variance            |     ✅      |      ✅      |     ❌      |     ❌      |
+| Post ordinary recount adjustment    |     ✅      |      ✅      |     ❌      |     ✅      |
+| Post unusual recount adjustment     |     ✅      |      ❌      |     ❌      |     ❌      |
+| Close ready business day            |     ✅      |      ✅      |     ❌      |     ❌      |
 | Record waste                        |     ✅      |      ✅      |  ✅ (prod)  |     ✅      |
 | Approve waste over threshold        |     ✅      |      ❌      |     ❌      |     ❌      |
 | Standard manual adjustment approval |     ✅      |      ✅      |     ❌      |     ❌      |
@@ -79,7 +81,7 @@ Legend: ✅ allowed · ❌ denied · ⛔ conditional (branch-scoped or requires 
 2. **Server**: every Server Action calls `requirePermission(permission, { branchId? })` before work.
 3. **RLS**: policies reference a `has_permission(uid, slug)` SQL helper + branch assignment; even a
    forged direct API call is blocked.
-4. **Sensitive columns**: costs & supplier prices live behind role-gated views/functions, not just
-   column-level UI hiding.
+4. **Sensitive columns**: costs & supplier prices live behind role-gated views/functions; Phase 7
+   recount cost/variance-value columns are additionally omitted from authenticated column grants.
 
 Automated authorization tests (Vitest + Playwright) prove each denial — see TESTING_STRATEGY.

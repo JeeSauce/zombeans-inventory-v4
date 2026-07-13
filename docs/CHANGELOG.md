@@ -5,6 +5,42 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 7 — Recounts & Daily Operations — 2026-07-13
+
+Added
+
+- Phase 7 schema/security/functions (migrations 0023–0025): human-referenced recount sessions,
+  frozen expected/physical/variance lines, reason-backed variance adjustments, per-branch day
+  closures, append-only close/reopen events, sensitive snapshot column grants, and branch-scoped
+  RLS.
+- Atomic, permission-checking, replay-safe open/submit/adjust/close/reopen RPCs. Recount
+  adjustments post compensating `recount_adjustment` ledger entries and update lots/balances in one
+  transaction without changing previously posted rows.
+- Expected quantity is frozen from opening plus categorized same-day receipts, production output,
+  transfers out, usage, stock-outs, and waste. Variance value is frozen from an existing posted
+  cost snapshot and is never recomputed or returned to browser code.
+- Unusual percent/value/zero-expected/missing-cost/negative/post-reopen/repeat-actor signals, with
+  Super Admin-only unusual confirmation. Ordinary Inventory Staff and Branch Managers can resolve
+  ordinary variances with a mandatory reason.
+- Required start-of-day, optional end-of-day, and cycle-count interfaces; live quantity variance;
+  close-readiness blockers; reasoned Super Admin reopen; later-change attribution; loading, empty,
+  success, warning, and error states; and permission-aware desktop/mobile navigation.
+
+Tests
+
+- Critical scenario 11 proves the full expected-quantity formula, four-decimal variance,
+  reason-backed compensating ledger net, frozen valuation, replay safety, and immutability of every
+  previously posted row; unusual cases reject ordinary staff and accept Super Admin.
+- Critical scenario 12 proves a closed branch date rejects ordinary stock posting through the RPC
+  and direct Phase 7 writes through grants/RLS, leaving balance and ledger counts unchanged.
+- Critical scenario 13 proves blank/non-Super reopen denial, one idempotent append-only close event
+  plus audit row, and explicit attribution of later ledger/recount activity to the reopen event.
+- Unit tests cover formula categories, four-decimal boundaries, variance value, and escalation
+  thresholds. Playwright covers Inventory Staff, Branch Manager, Super Admin, and Production Staff
+  on Chromium and Pixel 7 without cost or UUID exposure.
+
+Gate: critical scenarios **11**, **12**, and **13** pass.
+
 ### Phase 6 — Multi-branch Stock — 2026-07-13
 
 Added

@@ -81,8 +81,14 @@ erDiagram
     %% ── Control ──
     branches ||--o{ recount_sessions : counted
     recount_sessions ||--o{ recount_lines : counts
-    recount_lines ||--o{ recount_variances : varies
+    inventory_items ||--o{ recount_lines : expected_and_counted
+    recount_sessions ||--o| variance_adjustments : corrected_by
+    stock_transactions ||--o| variance_adjustments : posts
     branches ||--o{ daily_operational_closures : closed
+    daily_operational_closures ||--o{ day_close_events : records
+    audit_logs ||--|| day_close_events : audits
+    day_close_events ||--o{ stock_transactions : attributes_after_reopen
+    day_close_events ||--o{ recount_sessions : attributes_after_reopen
     approval_requests ||--o{ approval_history : tracked
 
     %% ── Ops & UX ──

@@ -53,13 +53,13 @@ Ledger; balances; stock-in/out (+ batch); requests; transfers; receiving; discre
 negative-inventory alerts.
 **Gate:** critical tests 5, 9, 10 pass.
 
-## Phase 7 — Recounts & Daily Operations ← next
+## Phase 7 — Recounts & Daily Operations
 
 Start-of-day recount; optional end-of-day; cycle counts; variances; adjustments; day closing;
 Super Admin reopening.
 **Gate:** critical tests 11, 12, 13 pass.
 
-## Phase 8 — Calendar, Popup Events, Notifications, Dashboard
+## Phase 8 — Calendar, Popup Events, Notifications, Dashboard ← next
 
 Operational calendar; popup event sessions; in-app + email notifications; dashboard analytics.
 **Gate:** notification dedup/severity + dashboard role-gating tests pass.

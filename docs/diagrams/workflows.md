@@ -90,18 +90,45 @@ stateDiagram-v2
     end note
 ```
 
-## Recount → adjustment
+## Recount → compensating adjustment
 
 ```mermaid
 flowchart TD
-    A[Start-of-day recount] --> B[Enter physical counts]
-    B --> C{Expected vs Physical}
-    C -->|match| D[Confirm session]
-    C -->|variance| E[Classify + reason required]
-    E --> F{Unusual variance?}
-    F -->|no| G[Branch Manager confirms]
-    F -->|yes| H[Escalate to Super Admin]
-    G --> I[Create Recount Adjustment ledger entry]
-    H --> I
-    I --> J[Variance value via cost snapshot]
+    A["Open start/end/cycle recount"] --> B["Freeze expected components and posted-cost snapshot"]
+    B --> C["Draft: enter every physical count"]
+    C --> D{"Physical - expected = 0?"}
+    D -->|yes| E["Closed: no ledger movement"]
+    D -->|no| F["Submitted: freeze variance and unusual signals"]
+    F --> G{"Unusual?"}
+    G -->|no| H["Inventory Staff or Branch Manager supplies reason"]
+    G -->|yes| I["Super Admin supplies reason"]
+    H --> J["Atomic recount_adjustment transaction"]
+    I --> J
+    J --> K["Append ledger + update balance/lots"]
+    K --> L["Adjusted: prior posted rows remain unchanged"]
+```
+
+Expected quantity is frozen to four decimals as
+`opening + received + production output - transfers out - usage - stock-outs - waste`. The
+variance value and adjustment ledger line copy the frozen existing cost snapshot; no finalized cost
+is recomputed.
+
+## Day close → audited reopen
+
+```mermaid
+stateDiagram-v2
+    [*] --> Open
+    Open --> Closed : manager/super closes ready day
+    Closed --> Closed : all stock/recount writes rejected
+    Closed --> Reopened : Super Admin + required reason
+    Reopened --> Reopened : later writes carry reopen event
+    Reopened --> Closed : close again when ready
+    note right of Open
+        Close requires a terminal start-of-day recount
+        and no draft/submitted recounts.
+    end note
+    note right of Reopened
+        Reopen writes one append-only close event and audit row.
+        Later ledger/recount rows link to that event explicitly.
+    end note
 ```
