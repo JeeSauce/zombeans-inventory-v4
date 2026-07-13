@@ -9,6 +9,7 @@ slice of the ledger core** that Phase 6 later extends to stock-out, transfers, a
 ## 1. Scope
 
 **In scope**
+
 - Suppliers, supplier_items, supplier_prices (sensitive, history-retained).
 - Purchase orders + lines (unit_cost sensitive, auto-filled from the current supplier price).
 - Partial receiving: per-line delivered/accepted/rejected/damaged/missing + expiry + lot.
@@ -19,11 +20,13 @@ slice of the ledger core** that Phase 6 later extends to stock-out, transfers, a
 - Lightweight PO payment status.
 
 **Deferred**
+
 - Receiving photo attachment (Supabase Storage) — later.
 - Full stock-out / transfers / stock requests / discrepancies — Phase 6.
 - Full accounts-payable ledger — later (Phase 9 reporting territory).
 
 **Key decisions from brainstorming**
+
 - Ledger: build the minimal core now (scenarios 6 & 7 require it); Phase 6 extends.
 - Cost flow: supplier_prices (Super Admin) → PO-line unit_cost auto-fill (hidden from managers) →
   receiving posts at PO-line cost → weighted-average updates. No non-Super user sees/enters cost.
@@ -37,6 +40,7 @@ version, soft-delete where applicable, money/qty `numeric(14,4)`, idempotency_ke
 tables, enums for controlled vocab).
 
 ### New enums
+
 - `po_status` (draft, submitted, approved, partially_received, fully_received, closed, cancelled)
 - `payment_status` (unpaid, partially_paid, paid, overdue, cancelled, refunded)
 - `stock_txn_type` — full enum per DATABASE_SCHEMA; Phase 3 **uses** only `purchase_receiving`,
@@ -45,6 +49,7 @@ tables, enums for controlled vocab).
 - `lot_status` (available, expired, quarantined)
 
 ### Purchasing tables
+
 - **suppliers** — name, contact fields, `lead_time_days`, `payment_terms`, `active`; soft-delete.
 - **supplier_items** — (`supplier_id`, `item_id`) unique, `supplier_sku`, `pack_size`.
 - **supplier_prices** — `supplier_item_id`, `price numeric(14,4)` (SENSITIVE), `effective_date`,
@@ -67,6 +72,7 @@ tables, enums for controlled vocab).
 - **supplier_return_lines** — `return_id`, `item_id`, `lot_id`, `qty numeric` (base unit), reason.
 
 ### Ledger core (minimal, receiving/returns-scoped)
+
 - **inventory_lots** — `item_id`, `branch_id`, `lot_number`, `received_date`, `expiration_date`,
   `qty_remaining numeric`, `unit_cost numeric(14,4)` (SENSITIVE snapshot), `status lot_status`.
   Index for FEFO (`item_id`, `branch_id`, `expiration_date`) where status='available'.
@@ -82,6 +88,7 @@ tables, enums for controlled vocab).
 ## 3. Costing & posting
 
 ### Pure helpers — `lib/purchasing/costing.ts` (unit-tested; DB twin below)
+
 - `purchaseCostToBase(unitCost, factor)` → base-unit cost = `unitCost / factor`
   (factor = purchase-unit → base-unit conversion; e.g. sack ₱1000, 1 sack = 25 kg → ₱40/kg).
 - `weightedAverage(oldQty, oldAvg, recvQty, recvCost)` →
@@ -89,6 +96,7 @@ tables, enums for controlled vocab).
   if `oldQty ≤ 0` → `recvCost`. Requires `recvQty > 0`.
 
 ### `post_purchase_receipt(p_receipt_id uuid)` — SECURITY DEFINER, single transaction
+
 1. **Idempotency:** if a `stock_transactions` row already exists with this receipt's
    `idempotency_key`, return it — no double-post.
 2. For each receipt line where `accepted_qty > 0` (scenario 6 — only accepted posts):
@@ -110,6 +118,7 @@ tables, enums for controlled vocab).
 5. Mark the receipt `posted`.
 
 ### `post_supplier_return(p_return_id uuid)` — SECURITY DEFINER, single transaction
+
 Idempotency-keyed. For each line: reduce the chosen lot's `qty_remaining` and the balance by the
 qty **at the lot's cost snapshot** (weighted-average unchanged on removal — standard). Insert a
 `stock_transactions` (type `supplier_return`, negative line qty) + set `payable_adjustment`.

@@ -23,6 +23,7 @@
 - Branch: `phase-3-purchasing` (already created off `main`, spec committed).
 
 **Reference patterns to mirror (read before implementing):**
+
 - Migration style: `supabase/migrations/0006_catalog_schema.sql`, `0007_catalog_rls.sql`, `0008_catalog_functions.sql`.
 - Column-list cost grant: `0007` (`inventory_items` grants).
 - Server action: `app/(app)/catalog/products/actions.ts`. Permission helper: `lib/permissions/index.ts`. Audit: `lib/audit/index.ts`.
@@ -36,9 +37,11 @@
 ### Task 1: Purchasing + ledger schema (migration 0010)
 
 **Files:**
+
 - Create: `supabase/migrations/0010_purchasing_schema.sql`
 
 **Interfaces:**
+
 - Produces tables: `suppliers`, `supplier_items`, `supplier_prices`, `purchase_orders`, `purchase_order_lines`, `purchase_receipts`, `purchase_receipt_lines`, `supplier_returns`, `supplier_return_lines`, `inventory_lots`, `inventory_balances`, `stock_transactions`, `stock_transaction_lines`; enums `po_status`, `payment_status`, `stock_txn_type`, `txn_status`, `lot_status`; sequences `po_ref_seq`, `receipt_ref_seq`, `return_ref_seq`, `stock_txn_ref_seq`.
 
 - [ ] **Step 1: Write the migration**
@@ -323,6 +326,7 @@ Expected: `Applying migration 0010_purchasing_schema.sql...` then `Migrations ap
 - [ ] **Step 3: Smoke-check the schema**
 
 Run (bash, from repo root — reuses the `pg` dep):
+
 ```bash
 cat > ._ck.mjs <<'EOF'
 import pg from "pg";
@@ -338,6 +342,7 @@ await c.end();
 EOF
 node ._ck.mjs; rm -f ._ck.mjs
 ```
+
 Expected: `tables: 13 (expect 13)`
 
 - [ ] **Step 4: Commit**
@@ -352,9 +357,11 @@ git commit -m "Phase 3a: purchasing + ledger-core schema"
 ### Task 2: RLS, grants, cost gates, cost view (migration 0011)
 
 **Files:**
+
 - Create: `supabase/migrations/0011_purchasing_rls.sql`
 
 **Interfaces:**
+
 - Consumes: all Task 1 tables; permission slugs from `0004`; `has_permission(uuid,text)` from `0003`.
 - Produces: permission `supplier_price.write`; RLS policies; column-list grants that omit every sensitive cost column; view `public.item_costs` (cost.read-gated).
 
@@ -556,10 +563,12 @@ git commit -m "Phase 3b: purchasing RLS, cost-column gates, supplier_price.write
 ### Task 3: Costing library + unit tests
 
 **Files:**
+
 - Create: `lib/purchasing/costing.ts`
 - Test: `tests/unit/costing.test.ts`
 
 **Interfaces:**
+
 - Produces: `purchaseCostToBase(unitCost: number, factor: number): number`; `weightedAverage(oldQty: number, oldAvg: number, recvQty: number, recvCost: number): number`. Both round to 4 dp.
 
 - [ ] **Step 1: Write the failing test**
@@ -658,10 +667,12 @@ git commit -m "Phase 3c: purchasing costing lib + unit tests (scenario 7)"
 ### Task 4: Posting functions (migration 0012) + integration tests (gate 6 & 7)
 
 **Files:**
+
 - Create: `supabase/migrations/0012_purchasing_functions.sql`
 - Test: `tests/integration/purchasing.test.ts`
 
 **Interfaces:**
+
 - Consumes: Task 1 tables, `unit_conversions` (from 0006), `has_permission`.
 - Produces SQL fns: `next_po_reference()`, `next_receipt_reference()`, `next_return_reference()`, `next_stock_txn_reference()`, `post_purchase_receipt(uuid)`, `post_supplier_return(uuid)`.
 
@@ -904,12 +915,23 @@ async function receive(poId: string, lineId: string, accepted: number, key: stri
   return r.rows[0].id as string;
 }
 const avg = async () =>
-  Number((await admin.query(`select weighted_avg_cost c from inventory_items where id=$1`, [fx.itemId])).rows[0].c);
+  Number(
+    (await admin.query(`select weighted_avg_cost c from inventory_items where id=$1`, [fx.itemId]))
+      .rows[0].c,
+  );
 const onHand = async () =>
-  Number((await admin.query(`select qty_on_hand q from inventory_balances where item_id=$1 and branch_id=$2`, [fx.itemId, fx.main])).rows[0]?.q ?? 0);
+  Number(
+    (
+      await admin.query(
+        `select qty_on_hand q from inventory_balances where item_id=$1 and branch_id=$2`,
+        [fx.itemId, fx.main],
+      )
+    ).rows[0]?.q ?? 0,
+  );
 
 beforeAll(async () => {
-  admin = await connect(); acting = await connect();
+  admin = await connect();
+  acting = await connect();
   await cleanupUsers(admin, EMAIL_LIKE);
   await admin.query(`delete from inventory_items where sku like 'PURTEST-%'`);
   ids.super = await createUser(admin, "purtest+super@zombeans.test", { fullName: "P Super" });
@@ -923,20 +945,26 @@ beforeAll(async () => {
   fx.unitKg = (await admin.query(`select id from units where code='kg'`)).rows[0].id;
   const item = await admin.query(
     `insert into inventory_items (name, sku, item_type, base_unit_id) values
-     ('PurTest Beans','PURTEST-1','raw_ingredient',$1) returning id`, [fx.unitKg]);
+     ('PurTest Beans','PURTEST-1','raw_ingredient',$1) returning id`,
+    [fx.unitKg],
+  );
   fx.itemId = item.rows[0].id;
-  const sup = await admin.query(`insert into suppliers (name) values ('PurTest Supplier') returning id`);
+  const sup = await admin.query(
+    `insert into suppliers (name) values ('PurTest Supplier') returning id`,
+  );
   fx.supplierId = sup.rows[0].id;
   const si = await admin.query(
     `insert into supplier_items (supplier_id, item_id) values ($1,$2) returning id`,
-    [fx.supplierId, fx.itemId]);
+    [fx.supplierId, fx.itemId],
+  );
   fx.siId = si.rows[0].id;
 }, 60_000);
 
 afterAll(async () => {
   await admin.query(`delete from inventory_items where sku like 'PURTEST-%'`);
   await cleanupUsers(admin, EMAIL_LIKE);
-  await admin.end(); await acting.end();
+  await admin.end();
+  await acting.end();
 });
 
 describe("scenario 6 — partial delivery posts only accepted quantities", () => {
@@ -950,7 +978,9 @@ describe("scenario 6 — partial delivery posts only accepted quantities", () =>
 
     // Over-receipt: outstanding is 40, try 50 → raises.
     const rOver = await receive(poId, lineId, 50, `p6-over-${poId}`);
-    await expect(admin.query(`select public.post_purchase_receipt($1)`, [rOver])).rejects.toThrow(/over-receipt/i);
+    await expect(admin.query(`select public.post_purchase_receipt($1)`, [rOver])).rejects.toThrow(
+      /over-receipt/i,
+    );
 
     // Receive the remaining 40 → fully_received.
     const r2 = await receive(poId, lineId, 40, `p6-b-${poId}`);
@@ -986,7 +1016,9 @@ describe("scenario 7 — weighted-average updates correctly", () => {
 describe("cost columns are gated from non-Super users", () => {
   it("inventory staff cannot read unit_cost on PO lines", async () => {
     await expect(
-      asUser(acting, ids.inventory, (c) => c.query(`select unit_cost from purchase_order_lines limit 1`)),
+      asUser(acting, ids.inventory, (c) =>
+        c.query(`select unit_cost from purchase_order_lines limit 1`),
+      ),
     ).rejects.toThrow(/permission denied/i);
   });
   it("inventory staff cannot read lot unit_cost", async () => {
@@ -997,7 +1029,8 @@ describe("cost columns are gated from non-Super users", () => {
   it("supplier_price.write is denied to a manager", async () => {
     await expect(
       asUser(acting, ids.manager, (c) =>
-        c.query(`insert into supplier_prices (supplier_item_id, price) values ($1, 9)`, [fx.siId])),
+        c.query(`insert into supplier_prices (supplier_item_id, price) values ($1, 9)`, [fx.siId]),
+      ),
     ).rejects.toThrow(/row-level security|permission denied/i);
   });
 });
@@ -1009,17 +1042,22 @@ describe("supplier return reduces the right lot", () => {
     await admin.query(`select public.post_purchase_receipt($1)`, [rc]);
     const lot = await admin.query(
       `select id, qty_remaining from inventory_lots where item_id=$1 order by created_at desc limit 1`,
-      [fx.itemId]);
+      [fx.itemId],
+    );
     const avgBefore = await avg();
     const ret = await admin.query(
       `insert into supplier_returns (reference, supplier_id, idempotency_key, created_by)
        values (public.next_return_reference(), $1, $2, $3) returning id`,
-      [fx.supplierId, `ret-${po.poId}`, ids.super]);
+      [fx.supplierId, `ret-${po.poId}`, ids.super],
+    );
     await admin.query(
       `insert into supplier_return_lines (return_id, item_id, lot_id, qty) values ($1,$2,$3,$4)`,
-      [ret.rows[0].id, fx.itemId, lot.rows[0].id, 4]);
+      [ret.rows[0].id, fx.itemId, lot.rows[0].id, 4],
+    );
     await admin.query(`select public.post_supplier_return($1)`, [ret.rows[0].id]);
-    const after = await admin.query(`select qty_remaining from inventory_lots where id=$1`, [lot.rows[0].id]);
+    const after = await admin.query(`select qty_remaining from inventory_lots where id=$1`, [
+      lot.rows[0].id,
+    ]);
     expect(Number(after.rows[0].qty_remaining)).toBe(Number(lot.rows[0].qty_remaining) - 4);
     expect(await avg()).toBe(avgBefore); // removal doesn't change weighted-average
   });
@@ -1048,9 +1086,11 @@ git commit -m "Phase 3d: posting functions + gate tests (scenarios 6 & 7)"
 ### Task 5: Zod validation schemas
 
 **Files:**
+
 - Create: `lib/validation/purchasing.ts`
 
 **Interfaces:**
+
 - Produces: `supplierSchema`, `supplierItemSchema`, `supplierPriceSchema`, `poSchema`, `poLineSchema`, `receiptLineSchema`, `returnLineSchema` with inferred input types. Mirror the style of `lib/validation/catalog.ts` (trimmed strings, `z.coerce.number()`, nullish→null transforms).
 
 - [ ] **Step 1: Write the schemas**
@@ -1144,12 +1184,14 @@ git commit -m "Phase 3e: purchasing Zod schemas"
 ### Task 6: Suppliers — server actions + UI
 
 **Files:**
+
 - Create: `app/(app)/purchasing/suppliers/actions.ts`
 - Create: `app/(app)/purchasing/suppliers/page.tsx`
 - Create: `components/purchasing/suppliers-client.tsx`
 - Modify: `components/app/nav.ts` (add "Suppliers", href `/purchasing/suppliers`, icon `Truck`, permission `supplier.read`)
 
 **Interfaces:**
+
 - Consumes: `supplierSchema`, `requirePermission`, `writeAudit`, `createClient`.
 - Produces: `createSupplierAction`, `updateSupplierAction` (`SupplierActionState = { error?: string; info?: string }`).
 
@@ -1190,28 +1232,52 @@ function fields(s: ReturnType<typeof supplierSchema.parse>) {
   };
 }
 
-export async function createSupplierAction(_p: SupplierActionState, fd: FormData): Promise<SupplierActionState> {
+export async function createSupplierAction(
+  _p: SupplierActionState,
+  fd: FormData,
+): Promise<SupplierActionState> {
   const { user } = await requirePermission("supplier.write");
   const parsed = parse(fd);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const supabase = await createClient();
-  const { data, error } = await supabase.from("suppliers")
+  const { data, error } = await supabase
+    .from("suppliers")
     .insert({ ...fields(parsed.data), created_by: user.id, updated_by: user.id })
-    .select("id").single();
+    .select("id")
+    .single();
   if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
-  await writeAudit({ actorId: user.id, action: "supplier.created", entityType: "supplier", entityId: data.id, after: parsed.data });
+  await writeAudit({
+    actorId: user.id,
+    action: "supplier.created",
+    entityType: "supplier",
+    entityId: data.id,
+    after: parsed.data,
+  });
   revalidatePath("/purchasing/suppliers");
   return { info: `Created ${parsed.data.name}.` };
 }
 
-export async function updateSupplierAction(id: string, _p: SupplierActionState, fd: FormData): Promise<SupplierActionState> {
+export async function updateSupplierAction(
+  id: string,
+  _p: SupplierActionState,
+  fd: FormData,
+): Promise<SupplierActionState> {
   const { user } = await requirePermission("supplier.write");
   const parsed = parse(fd);
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const supabase = await createClient();
-  const { error } = await supabase.from("suppliers").update({ ...fields(parsed.data), updated_by: user.id }).eq("id", id);
+  const { error } = await supabase
+    .from("suppliers")
+    .update({ ...fields(parsed.data), updated_by: user.id })
+    .eq("id", id);
   if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
-  await writeAudit({ actorId: user.id, action: "supplier.updated", entityType: "supplier", entityId: id, after: parsed.data });
+  await writeAudit({
+    actorId: user.id,
+    action: "supplier.updated",
+    entityType: "supplier",
+    entityId: id,
+    after: parsed.data,
+  });
   revalidatePath("/purchasing/suppliers");
   return { info: `Updated ${parsed.data.name}.` };
 }
@@ -1228,6 +1294,7 @@ Mirror `components/admin/branches-client.tsx` (same dialog-owns-`useActionState`
 - [ ] **Step 4: Add nav entry**
 
 In `components/app/nav.ts` import `Truck` from lucide-react and add:
+
 ```ts
 { label: "Suppliers", href: "/purchasing/suppliers", icon: Truck, permission: "supplier.read" },
 ```
@@ -1249,11 +1316,13 @@ git commit -m "Phase 3f: suppliers actions + UI"
 ### Task 7: Supplier prices + supplier_items (Super Admin) — actions + UI
 
 **Files:**
+
 - Create: `app/(app)/purchasing/suppliers/[id]/actions.ts`
 - Create: `app/(app)/purchasing/suppliers/[id]/page.tsx`
 - Create: `components/purchasing/supplier-detail-client.tsx`
 
 **Interfaces:**
+
 - Consumes: `supplierItemSchema`, `supplierPriceSchema`, `requirePermission`.
 - Produces: `addSupplierItemAction`, `addSupplierPriceAction`.
 
@@ -1271,41 +1340,75 @@ import { supplierItemSchema, supplierPriceSchema } from "@/lib/validation/purcha
 
 export type DetailActionState = { error?: string; info?: string };
 
-export async function addSupplierItemAction(supplierId: string, _p: DetailActionState, fd: FormData): Promise<DetailActionState> {
+export async function addSupplierItemAction(
+  supplierId: string,
+  _p: DetailActionState,
+  fd: FormData,
+): Promise<DetailActionState> {
   const { user } = await requirePermission("supplier.write");
   const parsed = supplierItemSchema.safeParse({
-    supplierId, itemId: fd.get("itemId"),
-    supplierSku: fd.get("supplierSku") || null, packSize: fd.get("packSize") || null,
+    supplierId,
+    itemId: fd.get("itemId"),
+    supplierSku: fd.get("supplierSku") || null,
+    packSize: fd.get("packSize") || null,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const supabase = await createClient();
   const { error } = await supabase.from("supplier_items").insert({
-    supplier_id: supplierId, item_id: parsed.data.itemId,
-    supplier_sku: parsed.data.supplierSku ?? null, pack_size: parsed.data.packSize ?? null,
-    created_by: user.id, updated_by: user.id,
+    supplier_id: supplierId,
+    item_id: parsed.data.itemId,
+    supplier_sku: parsed.data.supplierSku ?? null,
+    pack_size: parsed.data.packSize ?? null,
+    created_by: user.id,
+    updated_by: user.id,
   });
-  if (error) return { error: /duplicate/i.test(error.message) ? "That item is already linked." : error.message.replace(/^.*?:\s*/, "") };
-  await writeAudit({ actorId: user.id, action: "supplier_item.added", entityType: "supplier", entityId: supplierId, after: parsed.data });
+  if (error)
+    return {
+      error: /duplicate/i.test(error.message)
+        ? "That item is already linked."
+        : error.message.replace(/^.*?:\s*/, ""),
+    };
+  await writeAudit({
+    actorId: user.id,
+    action: "supplier_item.added",
+    entityType: "supplier",
+    entityId: supplierId,
+    after: parsed.data,
+  });
   revalidatePath(`/purchasing/suppliers/${supplierId}`);
   return { info: "Item linked." };
 }
 
-export async function addSupplierPriceAction(supplierId: string, _p: DetailActionState, fd: FormData): Promise<DetailActionState> {
+export async function addSupplierPriceAction(
+  supplierId: string,
+  _p: DetailActionState,
+  fd: FormData,
+): Promise<DetailActionState> {
   const { user } = await requirePermission("supplier_price.write");
   const parsed = supplierPriceSchema.safeParse({
-    supplierItemId: fd.get("supplierItemId"), price: fd.get("price"),
-    currency: fd.get("currency") || "PHP", effectiveDate: fd.get("effectiveDate") || undefined,
+    supplierItemId: fd.get("supplierItemId"),
+    price: fd.get("price"),
+    currency: fd.get("currency") || "PHP",
+    effectiveDate: fd.get("effectiveDate") || undefined,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const supabase = await createClient();
   const row: Record<string, unknown> = {
-    supplier_item_id: parsed.data.supplierItemId, price: parsed.data.price,
-    currency: parsed.data.currency, created_by: user.id,
+    supplier_item_id: parsed.data.supplierItemId,
+    price: parsed.data.price,
+    currency: parsed.data.currency,
+    created_by: user.id,
   };
   if (parsed.data.effectiveDate) row.effective_date = parsed.data.effectiveDate;
   const { error } = await supabase.from("supplier_prices").insert(row);
   if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
-  await writeAudit({ actorId: user.id, action: "supplier_price.added", entityType: "supplier_item", entityId: parsed.data.supplierItemId, after: { price: parsed.data.price } });
+  await writeAudit({
+    actorId: user.id,
+    action: "supplier_price.added",
+    entityType: "supplier_item",
+    entityId: parsed.data.supplierItemId,
+    after: { price: parsed.data.price },
+  });
   revalidatePath(`/purchasing/suppliers/${supplierId}`);
   return { info: "Price recorded." };
 }
@@ -1332,6 +1435,7 @@ git commit -m "Phase 3g: supplier items + price history UI"
 ### Task 8: Purchase orders — actions + UI
 
 **Files:**
+
 - Create: `app/(app)/purchasing/orders/actions.ts`
 - Create: `app/(app)/purchasing/orders/page.tsx`
 - Create: `app/(app)/purchasing/orders/[id]/page.tsx`
@@ -1340,6 +1444,7 @@ git commit -m "Phase 3g: supplier items + price history UI"
 - Modify: `components/app/nav.ts` (add "Purchase orders", `/purchasing/orders`, icon `ClipboardList`, permission `purchase.create`)
 
 **Interfaces:**
+
 - Consumes: `poSchema`, `poLineSchema`, `requirePermission`.
 - Produces: `createPoAction`, `addPoLineAction`, `submitPoAction`, `approvePoAction`, `setPaymentStatusAction`.
 
@@ -1363,7 +1468,7 @@ import { writeAudit } from "@/lib/audit";
 import { poSchema, poLineSchema } from "@/lib/validation/purchasing";
 
 export type PoActionState = { error?: string; info?: string };
-const PAYMENT = ["unpaid","partially_paid","paid","overdue","cancelled","refunded"] as const;
+const PAYMENT = ["unpaid", "partially_paid", "paid", "overdue", "cancelled", "refunded"] as const;
 
 export async function createPoAction(_p: PoActionState, fd: FormData): Promise<PoActionState> {
   const { user } = await requirePermission("purchase.create");
@@ -1376,46 +1481,95 @@ export async function createPoAction(_p: PoActionState, fd: FormData): Promise<P
   const supabase = await createClient();
   const { data: ref } = await supabase.rpc("next_po_reference");
   const row: Record<string, unknown> = {
-    reference: ref as string, supplier_id: parsed.data.supplierId,
-    status: "draft", notes: parsed.data.notes ?? null, created_by: user.id, updated_by: user.id,
+    reference: ref as string,
+    supplier_id: parsed.data.supplierId,
+    status: "draft",
+    notes: parsed.data.notes ?? null,
+    created_by: user.id,
+    updated_by: user.id,
   };
   if (parsed.data.expectedDate) row.expected_date = parsed.data.expectedDate;
   const { data, error } = await supabase.from("purchase_orders").insert(row).select("id").single();
   if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
-  await writeAudit({ actorId: user.id, action: "po.created", entityType: "purchase_order", entityId: data.id, after: { reference: ref } });
+  await writeAudit({
+    actorId: user.id,
+    action: "po.created",
+    entityType: "purchase_order",
+    entityId: data.id,
+    after: { reference: ref },
+  });
   revalidatePath("/purchasing/orders");
   return { info: `Created ${ref}.` };
 }
 
-export async function addPoLineAction(poId: string, _p: PoActionState, fd: FormData): Promise<PoActionState> {
+export async function addPoLineAction(
+  poId: string,
+  _p: PoActionState,
+  fd: FormData,
+): Promise<PoActionState> {
   const { user } = await requirePermission("purchase.create");
   const parsed = poLineSchema.safeParse({
-    poId, itemId: fd.get("itemId"), unitId: fd.get("unitId"), orderedQty: fd.get("orderedQty"),
+    poId,
+    itemId: fd.get("itemId"),
+    unitId: fd.get("unitId"),
+    orderedQty: fd.get("orderedQty"),
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   // Cost lookup + write uses the service role (unit_cost/subtotal/total are server-only columns).
   const admin = createAdminClient();
-  const { data: po } = await admin.from("purchase_orders").select("supplier_id").eq("id", poId).single();
+  const { data: po } = await admin
+    .from("purchase_orders")
+    .select("supplier_id")
+    .eq("id", poId)
+    .single();
   if (!po) return { error: "PO not found." };
-  const { data: si } = await admin.from("supplier_items").select("id")
-    .eq("supplier_id", po.supplier_id).eq("item_id", parsed.data.itemId).maybeSingle();
+  const { data: si } = await admin
+    .from("supplier_items")
+    .select("id")
+    .eq("supplier_id", po.supplier_id)
+    .eq("item_id", parsed.data.itemId)
+    .maybeSingle();
   let unitCost = 0;
   if (si) {
-    const { data: price } = await admin.from("supplier_prices").select("price")
-      .eq("supplier_item_id", si.id).order("effective_date", { ascending: false }).limit(1).maybeSingle();
+    const { data: price } = await admin
+      .from("supplier_prices")
+      .select("price")
+      .eq("supplier_item_id", si.id)
+      .order("effective_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
     unitCost = price ? Number(price.price) : 0;
   }
   const { error } = await admin.from("purchase_order_lines").insert({
-    po_id: poId, item_id: parsed.data.itemId, unit_id: parsed.data.unitId,
-    ordered_qty: parsed.data.orderedQty, unit_cost: unitCost, created_by: user.id, updated_by: user.id,
+    po_id: poId,
+    item_id: parsed.data.itemId,
+    unit_id: parsed.data.unitId,
+    ordered_qty: parsed.data.orderedQty,
+    unit_cost: unitCost,
+    created_by: user.id,
+    updated_by: user.id,
   });
   if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
   // Recompute totals.
-  const { data: lines } = await admin.from("purchase_order_lines")
-    .select("ordered_qty, unit_cost").eq("po_id", poId);
-  const subtotal = (lines ?? []).reduce((s, l) => s + Number(l.ordered_qty) * Number(l.unit_cost), 0);
-  await admin.from("purchase_orders").update({ subtotal, total: subtotal, updated_by: user.id }).eq("id", poId);
-  await writeAudit({ actorId: user.id, action: "po.line.added", entityType: "purchase_order", entityId: poId, after: { itemId: parsed.data.itemId, orderedQty: parsed.data.orderedQty } });
+  const { data: lines } = await admin
+    .from("purchase_order_lines")
+    .select("ordered_qty, unit_cost")
+    .eq("po_id", poId);
+  const subtotal = (lines ?? []).reduce(
+    (s, l) => s + Number(l.ordered_qty) * Number(l.unit_cost),
+    0,
+  );
+  await admin
+    .from("purchase_orders")
+    .update({ subtotal, total: subtotal, updated_by: user.id })
+    .eq("id", poId);
+  await writeAudit({
+    actorId: user.id,
+    action: "po.line.added",
+    entityType: "purchase_order",
+    entityId: poId,
+    after: { itemId: parsed.data.itemId, orderedQty: parsed.data.orderedQty },
+  });
   revalidatePath(`/purchasing/orders/${poId}`);
   return { info: "Line added." };
 }
@@ -1423,10 +1577,18 @@ export async function addPoLineAction(poId: string, _p: PoActionState, fd: FormD
 export async function submitPoAction(poId: string): Promise<PoActionState> {
   const { user } = await requirePermission("purchase.create");
   const supabase = await createClient();
-  const { error } = await supabase.from("purchase_orders").update({ status: "submitted", updated_by: user.id })
-    .eq("id", poId).eq("status", "draft");
+  const { error } = await supabase
+    .from("purchase_orders")
+    .update({ status: "submitted", updated_by: user.id })
+    .eq("id", poId)
+    .eq("status", "draft");
   if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
-  await writeAudit({ actorId: user.id, action: "po.submitted", entityType: "purchase_order", entityId: poId });
+  await writeAudit({
+    actorId: user.id,
+    action: "po.submitted",
+    entityType: "purchase_order",
+    entityId: poId,
+  });
   revalidatePath(`/purchasing/orders/${poId}`);
   return { info: "Submitted for approval." };
 }
@@ -1434,11 +1596,23 @@ export async function submitPoAction(poId: string): Promise<PoActionState> {
 export async function approvePoAction(poId: string): Promise<PoActionState> {
   const { user } = await requirePermission("purchase.approve");
   const supabase = await createClient();
-  const { error } = await supabase.from("purchase_orders")
-    .update({ status: "approved", approved_by: user.id, approved_at: new Date().toISOString(), updated_by: user.id })
-    .eq("id", poId).eq("status", "submitted");
+  const { error } = await supabase
+    .from("purchase_orders")
+    .update({
+      status: "approved",
+      approved_by: user.id,
+      approved_at: new Date().toISOString(),
+      updated_by: user.id,
+    })
+    .eq("id", poId)
+    .eq("status", "submitted");
   if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
-  await writeAudit({ actorId: user.id, action: "po.approved", entityType: "purchase_order", entityId: poId });
+  await writeAudit({
+    actorId: user.id,
+    action: "po.approved",
+    entityType: "purchase_order",
+    entityId: poId,
+  });
   revalidatePath(`/purchasing/orders/${poId}`);
   return { info: "Approved." };
 }
@@ -1447,9 +1621,18 @@ export async function setPaymentStatusAction(poId: string, status: string): Prom
   const { user } = await requirePermission("purchase.approve");
   if (!(PAYMENT as readonly string[]).includes(status)) return { error: "Invalid status." };
   const supabase = await createClient();
-  const { error } = await supabase.from("purchase_orders").update({ payment_status: status, updated_by: user.id }).eq("id", poId);
+  const { error } = await supabase
+    .from("purchase_orders")
+    .update({ payment_status: status, updated_by: user.id })
+    .eq("id", poId);
   if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
-  await writeAudit({ actorId: user.id, action: "po.payment.updated", entityType: "purchase_order", entityId: poId, after: { status } });
+  await writeAudit({
+    actorId: user.id,
+    action: "po.payment.updated",
+    entityType: "purchase_order",
+    entityId: poId,
+    after: { status },
+  });
   revalidatePath(`/purchasing/orders/${poId}`);
   return { info: "Payment status updated." };
 }
@@ -1481,6 +1664,7 @@ git commit -m "Phase 3h: purchase orders actions + UI"
 ### Task 9: Receiving — actions + UI + review queue
 
 **Files:**
+
 - Create: `app/(app)/purchasing/receiving/actions.ts`
 - Create: `app/(app)/purchasing/receiving/page.tsx`
 - Create: `app/(app)/purchasing/receiving/[poId]/page.tsx`
@@ -1488,6 +1672,7 @@ git commit -m "Phase 3h: purchase orders actions + UI"
 - Modify: `components/app/nav.ts` (add "Receiving", `/purchasing/receiving`, icon `PackageCheck`, permission `purchase.receive`)
 
 **Interfaces:**
+
 - Consumes: `receiptLineSchema`, `requirePermission`, `crypto.randomUUID` for the idempotency key.
 - Produces: `submitReceiptAction(poId, prev, formData)`.
 
@@ -1503,14 +1688,23 @@ import { requirePermission } from "@/lib/permissions";
 import { writeAudit } from "@/lib/audit";
 
 export type ReceiveActionState = { error?: string; info?: string };
-const num = (v: FormDataEntryValue | null) => { const s = typeof v === "string" ? v.trim() : ""; return s ? Number(s) : 0; };
+const num = (v: FormDataEntryValue | null) => {
+  const s = typeof v === "string" ? v.trim() : "";
+  return s ? Number(s) : 0;
+};
 
-export async function submitReceiptAction(poId: string, _p: ReceiveActionState, fd: FormData): Promise<ReceiveActionState> {
+export async function submitReceiptAction(
+  poId: string,
+  _p: ReceiveActionState,
+  fd: FormData,
+): Promise<ReceiveActionState> {
   const { user } = await requirePermission("purchase.receive");
   const supabase = await createClient();
 
-  const { data: lines, error: linesErr } = await supabase.from("purchase_order_lines")
-    .select("id, ordered_qty, received_accepted_qty").eq("po_id", poId);
+  const { data: lines, error: linesErr } = await supabase
+    .from("purchase_order_lines")
+    .select("id, ordered_qty, received_accepted_qty")
+    .eq("po_id", poId);
   if (linesErr || !lines?.length) return { error: "Could not load the order lines." };
 
   const parsed = lines.map((l) => ({
@@ -1519,12 +1713,17 @@ export async function submitReceiptAction(poId: string, _p: ReceiveActionState, 
     rejected: num(fd.get(`rejected_${l.id}`)),
     damaged: num(fd.get(`damaged_${l.id}`)),
     missing: num(fd.get(`missing_${l.id}`)),
-    delivered: num(fd.get(`accepted_${l.id}`)) + num(fd.get(`rejected_${l.id}`)) + num(fd.get(`damaged_${l.id}`)),
+    delivered:
+      num(fd.get(`accepted_${l.id}`)) +
+      num(fd.get(`rejected_${l.id}`)) +
+      num(fd.get(`damaged_${l.id}`)),
     lot: (fd.get(`lot_${l.id}`) as string) || null,
     expiry: (fd.get(`expiry_${l.id}`) as string) || null,
     outstanding: Number(l.ordered_qty) - Number(l.received_accepted_qty),
   }));
-  if (parsed.every((p) => p.accepted === 0 && p.rejected === 0 && p.damaged === 0 && p.missing === 0))
+  if (
+    parsed.every((p) => p.accepted === 0 && p.rejected === 0 && p.damaged === 0 && p.missing === 0)
+  )
     return { error: "Enter at least one received quantity." };
 
   const hasDamage = parsed.some((p) => p.damaged > 0);
@@ -1532,25 +1731,52 @@ export async function submitReceiptAction(poId: string, _p: ReceiveActionState, 
 
   const { data: ref } = await supabase.rpc("next_receipt_reference");
   const idempotencyKey = crypto.randomUUID();
-  const { data: receipt, error: rErr } = await supabase.from("purchase_receipts").insert({
-    reference: ref as string, po_id: poId, received_by: user.id, idempotency_key: idempotencyKey,
-    has_damage: hasDamage, has_shortage: hasShortage, needs_review: hasDamage || hasShortage,
-    created_by: user.id, updated_by: user.id,
-  }).select("id").single();
+  const { data: receipt, error: rErr } = await supabase
+    .from("purchase_receipts")
+    .insert({
+      reference: ref as string,
+      po_id: poId,
+      received_by: user.id,
+      idempotency_key: idempotencyKey,
+      has_damage: hasDamage,
+      has_shortage: hasShortage,
+      needs_review: hasDamage || hasShortage,
+      created_by: user.id,
+      updated_by: user.id,
+    })
+    .select("id")
+    .single();
   if (rErr) return { error: rErr.message.replace(/^.*?:\s*/, "") };
 
   const { error: rlErr } = await supabase.from("purchase_receipt_lines").insert(
-    parsed.filter((p) => p.delivered > 0 || p.missing > 0).map((p) => ({
-      receipt_id: receipt.id, po_line_id: p.poLineId,
-      delivered_qty: p.delivered, accepted_qty: p.accepted, rejected_qty: p.rejected,
-      damaged_qty: p.damaged, missing_qty: p.missing, lot_number: p.lot, expiration_date: p.expiry,
-    })));
+    parsed
+      .filter((p) => p.delivered > 0 || p.missing > 0)
+      .map((p) => ({
+        receipt_id: receipt.id,
+        po_line_id: p.poLineId,
+        delivered_qty: p.delivered,
+        accepted_qty: p.accepted,
+        rejected_qty: p.rejected,
+        damaged_qty: p.damaged,
+        missing_qty: p.missing,
+        lot_number: p.lot,
+        expiration_date: p.expiry,
+      })),
+  );
   if (rlErr) return { error: rlErr.message.replace(/^.*?:\s*/, "") };
 
-  const { error: postErr } = await supabase.rpc("post_purchase_receipt", { p_receipt_id: receipt.id });
+  const { error: postErr } = await supabase.rpc("post_purchase_receipt", {
+    p_receipt_id: receipt.id,
+  });
   if (postErr) return { error: postErr.message.replace(/^.*?:\s*/, "") };
 
-  await writeAudit({ actorId: user.id, action: "receipt.posted", entityType: "purchase_receipt", entityId: receipt.id, after: { reference: ref } });
+  await writeAudit({
+    actorId: user.id,
+    action: "receipt.posted",
+    entityType: "purchase_receipt",
+    entityId: receipt.id,
+    after: { reference: ref },
+  });
   revalidatePath("/purchasing/receiving");
   revalidatePath(`/purchasing/orders/${poId}`);
   return { info: `Received ${ref}.` };
@@ -1583,12 +1809,14 @@ git commit -m "Phase 3i: receiving actions + UI"
 ### Task 10: Supplier returns — actions + UI
 
 **Files:**
+
 - Create: `app/(app)/purchasing/returns/actions.ts`
 - Create: `app/(app)/purchasing/returns/page.tsx`
 - Create: `components/purchasing/returns-client.tsx`
 - Modify: `components/app/nav.ts` (add "Returns", `/purchasing/returns`, icon `Undo2`, permission `supplier.write`)
 
 **Interfaces:**
+
 - Consumes: `returnLineSchema`, `requirePermission`.
 - Produces: `createReturnAction`.
 
@@ -1618,6 +1846,7 @@ git commit -m "Phase 3j: supplier returns actions + UI"
 ### Task 11: e2e, docs, phase report, full verification
 
 **Files:**
+
 - Create: `tests/e2e/purchasing.spec.ts`
 - Modify: `docs/CHANGELOG.md`, `docs/ASSUMPTIONS.md`
 - Create: `docs/reports/PHASE_3.md`
@@ -1626,6 +1855,7 @@ git commit -m "Phase 3j: supplier returns actions + UI"
 - [ ] **Step 1: Write `tests/e2e/purchasing.spec.ts`**
 
 Viewport-agnostic permission gating (mirror `tests/e2e/catalog.spec.ts`; use the same `login` helper). Tests:
+
 1. Inventory staff: `/purchasing/receiving` heading visible; `/purchasing/suppliers` redirects to `/dashboard` (no `supplier.read`).
 2. Inventory staff: `/purchasing/orders/<any>` — cannot see cost (assert no "Unit cost" column text). Use a seeded/known route or skip if no data — prefer asserting `/purchasing/suppliers` redirect and receiving-page access only.
 3. Manager: `/purchasing/orders` heading visible; `/purchasing/receiving` redirects to `/dashboard` (no `purchase.receive`).
@@ -1656,6 +1886,7 @@ Expected: all pass.
 git add -A
 git commit -m "Phase 3k: purchasing e2e + docs + phase report"
 ```
+
 Then invoke `superpowers:finishing-a-development-branch` to push and open the PR into `main`.
 
 ---
