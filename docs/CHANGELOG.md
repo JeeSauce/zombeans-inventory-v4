@@ -5,6 +5,36 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 4 — Recipes & Product Costing — 2026-07-13
+
+Added
+
+- Versioned recipe schema (migrations 0013–0015): production, product/variant sale, and modifier
+  recipes; normalized lines; one active version per recipe; immutable activated versions and
+  append-only cost snapshots.
+- Protected recursive cost engine using active production recipes and weighted-average leaf
+  costs, with yield, waste, consumable packaging, reusable-container exclusion, cycle/depth
+  protection, and atomic activation snapshots.
+- Defense-in-depth cost controls: recipe composition uses `recipe.read/write` RLS, while costs are
+  available only through `cost.read`-checking `SECURITY DEFINER` RPCs. Authenticated users have no
+  direct `cost_snapshots` table privilege.
+- Recipe list/detail UI with draft versioning, normalized input editor, activation workflow, and
+  permission-gated cost breakdown. Super-Admin-only costing dashboard adds branch selling price,
+  gross profit, margin, food-cost percentage, and markup.
+- Recipes and Costing navigation, loading/empty/error states, Zod validation, audited server
+  actions, pure TypeScript costing helpers, and Phase 4 unit/integration/e2e coverage.
+
+Tests
+
+- Critical scenario 1: non-cost roles are denied protected cost functions and snapshot table
+  access; cost UI/navigation remains absent.
+- Critical scenario 8: activation cost snapshots remain unchanged after weighted-average input
+  costs move, while live recalculation reflects the new cost.
+- Phase 4 scenario 9 gate: sale/modifier recipes reject raw or finished sellable inputs; recursive
+  raw → sub-product → sale costing and cycle rejection are covered at the database layer.
+
+Gate: critical scenarios **1** and **8** pass; the recipe-model portion of scenario **9** passes.
+
 ### Phase 3 — Ingredients, Suppliers & Purchasing — 2026-07-11
 
 Added

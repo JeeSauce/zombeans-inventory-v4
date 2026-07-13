@@ -11,7 +11,7 @@ real data ✓ · loading/empty/error states ✓ · audit logging where applicabl
 ✓ · mobile verified ✓ · automated tests pass ✓ · docs updated ✓ · no critical TS/lint/build/
 security errors ✓.
 
-## Phase 0 — Planning & Repository Foundation ← current
+## Phase 0 — Planning & Repository Foundation
 
 Architecture docs (all 13 + diagrams), repo scaffold, code-quality tooling, env validation, base
 design system/tokens, local/staging/prod strategy. No business modules.
@@ -42,7 +42,7 @@ Recipe versions; multi-level recipes; variant recipes; modifier deductions; pack
 snapshots; costing dashboard (Super Admin only).
 **Gate:** critical tests 1, 8 pass.
 
-## Phase 5 — Production
+## Phase 5 — Production ← next
 
 Templates; orders; inputs/outputs; yield/waste; batches; expiration; FEFO; approvals.
 **Gate:** critical tests 2, 3, 4 pass.

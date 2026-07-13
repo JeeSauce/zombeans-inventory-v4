@@ -40,6 +40,9 @@ erDiagram
 
     %% ── Recipes & Costing ──
     inventory_items ||--o{ recipes : produces
+    products ||--o| recipes : sale_recipe
+    product_variants ||--o| recipes : variant_recipe
+    modifier_options ||--o| recipes : deduction_recipe
     recipes ||--o{ recipe_versions : versioned
     recipe_versions ||--o{ recipe_lines : consumes
     inventory_items ||--o{ recipe_lines : input

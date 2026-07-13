@@ -10,6 +10,8 @@ import {
   ClipboardList,
   PackageCheck,
   Undo2,
+  BookOpen,
+  Calculator,
   type LucideIcon,
 } from "lucide-react";
 
@@ -55,6 +57,8 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Undo2,
     permission: "supplier.write",
   },
+  { label: "Recipes", href: "/recipes", icon: BookOpen, permission: "recipe.read" },
+  { label: "Costing", href: "/costing", icon: Calculator, permission: "cost.read" },
   { label: "Users", href: "/admin/users", icon: Users, permission: "users.manage" },
   { label: "Branches", href: "/admin/branches", icon: Store, permission: "settings.manage" },
   { label: "Settings", href: "/admin/settings", icon: Settings, permission: "settings.manage" },

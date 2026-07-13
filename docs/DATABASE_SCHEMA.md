@@ -86,13 +86,21 @@ missing_qty`, `expiration_date`, `lot_number`, `actual_unit_cost` (sensitive). A
 
 ## 4. Recipes & Costing
 
-- **recipes** — `output_item_id`, `name`, `active`.
-- **recipe_versions** — `recipe_id`, `version int`, `effective_date`, `output_qty`, `output_unit`,
-  `expected_yield`, `expected_waste`, `active bool`, `prep_notes`. Only one active per recipe.
+- **recipes** — `name`, `kind` (production/sale/modifier), `output_item_id`, exactly one optional
+  catalog target appropriate to the kind (`product_id`, `variant_id`, `modifier_option_id`),
+  `active`, audit/version/soft-delete columns. Partial unique indexes permit only one live recipe
+  for each production output or catalog target.
+- **recipe_versions** — `recipe_id`, `version_number`, `effective_date`, `output_qty`,
+  `output_unit_id`, `expected_yield_pct`, `expected_waste_pct`, `is_active`, `activated_at/by`,
+  `prep_notes`. A partial unique index enforces one active version. Activated rows are immutable;
+  revisions require a new draft version.
 - **recipe_lines** — `recipe_version_id`, `input_item_id`, `qty numeric` (base unit),
-  `is_packaging bool`. Multi-level: an input item may itself be a produced sub-product.
-- **cost_snapshots** — `recipe_version_id` or txn ref, computed cost breakdown (sensitive),
-  `computed_at`. Immutable once attached to a finalized record.
+  `is_packaging bool`. One input per version; multi-level costing follows an input item's active
+  production recipe. Sale/modifier lines are restricted to prepared items and packaging.
+- **cost_snapshots** — `recipe_version_id`, `snapshot_reason`, ingredient/packaging/waste/total/
+  unit costs, `effective_output_qty`, item-level `breakdown jsonb`, `computed_at`, `created_by`.
+  SENSITIVE and append-only; authenticated users have no direct table access and read through a
+  `cost.read`-checking function only.
 
 ## 5. Production
 
