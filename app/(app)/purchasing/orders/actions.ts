@@ -59,10 +59,12 @@ export async function addPoLineAction(
   const admin = createAdminClient();
   const { data: po } = await admin
     .from("purchase_orders")
-    .select("supplier_id")
+    .select("supplier_id, status")
     .eq("id", poId)
     .single();
   if (!po) return { error: "PO not found." };
+  if (po.status !== "draft")
+    return { error: "Lines can only be added while the order is a draft." };
   const { data: si } = await admin
     .from("supplier_items")
     .select("id")
