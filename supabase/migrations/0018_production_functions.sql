@@ -122,6 +122,8 @@ declare
   v_business_date date := (now() at time zone 'Asia/Manila')::date;
   v_snapshot_total numeric(14,4);
   v_output_unit_cost numeric(14,4);
+  v_old_output_qty numeric(14,4);
+  v_old_output_avg numeric(14,4);
   v_balance_rows integer;
 begin
   if v_user is null or not public.has_permission(v_user, 'production.confirm') then
@@ -267,11 +269,31 @@ begin
     v_output_unit_cost, 'available'
   ) returning id into v_output_lot_id;
 
+  -- Preserve the Phase 3 weighted-average projection for downstream costing. Lock the item before
+  -- reading its current average, and use the pre-production branch balance as the old quantity.
+  select weighted_avg_cost into v_old_output_avg from public.inventory_items
+  where id = v_order.output_item_id for update;
+  select qty_on_hand into v_old_output_qty from public.inventory_balances
+  where item_id = v_order.output_item_id and branch_id = v_order.branch_id;
+  v_old_output_qty := coalesce(v_old_output_qty, 0);
+
   insert into public.inventory_balances (item_id, branch_id, qty_on_hand, updated_at)
   values (v_order.output_item_id, v_order.branch_id, v_order.actual_output_qty, now())
   on conflict (item_id, branch_id) do update
     set qty_on_hand = public.inventory_balances.qty_on_hand + excluded.qty_on_hand,
         updated_at = now();
+
+  update public.inventory_items set
+    weighted_avg_cost = case
+      when v_old_output_qty <= 0 then v_output_unit_cost
+      else round(
+        (v_old_output_qty * coalesce(v_old_output_avg, 0)
+          + v_order.actual_output_qty * v_output_unit_cost)
+        / (v_old_output_qty + v_order.actual_output_qty),
+        4
+      )
+    end
+  where id = v_order.output_item_id;
 
   insert into public.stock_transaction_lines (
     txn_id, item_id, qty, unit_id, lot_id, unit_cost_snapshot

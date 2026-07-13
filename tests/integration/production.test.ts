@@ -440,6 +440,7 @@ describe("critical scenario 4 — duplicate completion is idempotent", () => {
       output_qty: string;
       transaction_count: number;
       line_count: number;
+      output_average: string;
     }>(
       `select
          (select qty_remaining from public.inventory_lots where id = $2) input_qty,
@@ -447,7 +448,8 @@ describe("critical scenario 4 — duplicate completion is idempotent", () => {
          (select count(*)::int from public.stock_transactions where production_order_id = $1) transaction_count,
          (select count(*)::int from public.stock_transaction_lines stl
           join public.stock_transactions st on st.id = stl.txn_id
-          where st.production_order_id = $1) line_count`,
+          where st.production_order_id = $1) line_count,
+         (select weighted_avg_cost from public.inventory_items where id = $3) output_average`,
       [scenario.orderId, inputLot, scenario.outputItemId, base.branch],
     );
     const second = await runAsUserAndCommit(users.manager, (client) =>
@@ -462,7 +464,8 @@ describe("critical scenario 4 — duplicate completion is idempotent", () => {
          (select count(*)::int from public.stock_transactions where production_order_id = $1) transaction_count,
          (select count(*)::int from public.stock_transaction_lines stl
           join public.stock_transactions st on st.id = stl.txn_id
-          where st.production_order_id = $1) line_count`,
+          where st.production_order_id = $1) line_count,
+         (select weighted_avg_cost from public.inventory_items where id = $3) output_average`,
       [scenario.orderId, inputLot, scenario.outputItemId, base.branch],
     );
 
@@ -473,6 +476,7 @@ describe("critical scenario 4 — duplicate completion is idempotent", () => {
       output_qty: "9.0000",
       transaction_count: 3,
       line_count: 3,
+      output_average: "5.8333",
     });
   });
 });
