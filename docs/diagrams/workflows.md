@@ -20,6 +20,49 @@ stateDiagram-v2
     end note
 ```
 
+## Notification condition and delivery
+
+```mermaid
+flowchart TD
+    A["Operational producer observes condition"] --> B["Derive source severity and stable dedup key"]
+    B --> C{"Active notification exists?"}
+    C -->|yes| D["Update last raised and raise count"]
+    C -->|no| E["Create active human-referenced notification"]
+    D --> F["Append re-raised event"]
+    E --> G["Append raised event"]
+    F --> H["Ensure one in-app delivery per visible user"]
+    G --> H
+    H --> I{"Critical?"}
+    I -->|no| J["Current alert remains visible until resolved"]
+    I -->|yes| K["Queue one server-only email per recipient"]
+    K --> L["Claim with token, send, finalize or retry"]
+    L --> J
+    J --> M["Read/ack changes own receipt and appends event"]
+    M --> N["Resolution preserves history; a later recurrence creates a new active row"]
+```
+
+## Popup engagement reconciliation
+
+```mermaid
+stateDiagram-v2
+    [*] --> Planned : create calendar-linked engagement
+    Planned --> InProgress : start
+    InProgress --> Reconciling : save balanced event count
+    Reconciling --> Completed : validate linked posted movements and freeze summary
+    Planned --> Cancelled : reasoned cancel
+    InProgress --> Cancelled : reasoned cancel
+    Completed --> [*]
+    Cancelled --> [*]
+    note right of InProgress
+        Stock moves only through Phase 6 transfer/stock RPCs.
+        The popup session links their posted effects.
+    end note
+    note right of Completed
+        Completion checks arithmetic and ending zero.
+        It never writes balance, lot, or ledger rows.
+    end note
+```
+
 ## Production workflow
 
 ```mermaid

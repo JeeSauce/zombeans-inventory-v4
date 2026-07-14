@@ -32,6 +32,7 @@ Permissions use `resource.action` slugs. Examples:
 - `adjustment.request` · `adjustment.approve` · `adjustment.approve_high_value`
 - `waste.record` · `waste.approve`
 - `purchase.create` · `purchase.approve` · `purchase.receive`
+- `calendar.manage` (Super Admin and Branch Manager; all operational roles can read)
 - `closure.reopen` (Super Admin) · `recyclebin.restore`
 - `users.manage` · `roles.manage` · `settings.manage` · `audit.read` · `backup.manage`
 
@@ -66,6 +67,12 @@ Permissions use `resource.action` slugs. Examples:
 | Approve purchase order              |     ✅      | ⛔ delegated |     ❌      |     ❌      |
 | Receive PO delivery                 |     ✅      |      ❌      |     ❌      |     ✅      |
 | Calendar create/edit                |     ✅      |      ✅      |     ❌      |     ❌      |
+| Calendar / popup read               |     ✅      |      ✅      |     ✅      |     ✅      |
+| Popup engagement lifecycle          |     ✅      |      ✅      |     ❌      |     ❌      |
+| View targeted notifications         |     ✅      |      ✅      |     ✅      |     ✅      |
+| Acknowledge own notification        |     ✅      |      ✅      |     ✅      |     ✅      |
+| Dashboard operational analytics     |     ✅      |      ✅      |     ✅      |     ✅      |
+| Dashboard inventory valuation       |     ✅      |      ❌      |     ❌      |     ❌      |
 | Reopen closed day                   |     ✅      |      ❌      |     ❌      |     ❌      |
 | Recycle-bin restore                 |     ✅      |      ❌      |     ❌      |     ❌      |
 
@@ -82,6 +89,8 @@ Legend: ✅ allowed · ❌ denied · ⛔ conditional (branch-scoped or requires 
 3. **RLS**: policies reference a `has_permission(uid, slug)` SQL helper + branch assignment; even a
    forged direct API call is blocked.
 4. **Sensitive columns**: costs & supplier prices live behind role-gated views/functions; Phase 7
-   recount cost/variance-value columns are additionally omitted from authenticated column grants.
+   recount cost/variance-value columns are omitted from authenticated grants, and Phase 8 exposes
+   valuation only through a `cost.read`-checking function. Email recipient addresses and provider
+   errors are server-only.
 
 Automated authorization tests (Vitest + Playwright) prove each denial — see TESTING_STRATEGY.

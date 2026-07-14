@@ -51,7 +51,7 @@ sidebar, collapsible tablet sidebar, simplified mobile nav. Never show raw UUIDs
     /new                 /[ref]                        start-of-day, cycle, etc.
     /variances
   /calendar                                            month / week / agenda
-    /popups              /popups/[id]                  event sessions
+  /popups              /popups/[id]                    event sessions
   /reports               /reports/[type]               filters + CSV/Excel/PDF/print
   /notifications
   /admin                                               (Super Admin)

@@ -94,8 +94,17 @@ erDiagram
     %% ── Ops & UX ──
     branches ||--o{ calendar_events : scheduled
     calendar_events ||--o| popup_event_sessions : detail
-    profiles ||--o{ notifications : notified
-    profiles ||--o{ notification_preferences : configures
+    calendar_events ||--o{ calendar_event_commands : changed_by
+    branches ||--o{ popup_event_sessions : holds_or_returns
+    popup_event_sessions ||--o{ popup_event_count_lines : reconciles
+    popup_event_sessions ||--o{ popup_event_movements : summarizes
+    popup_event_sessions ||--o{ popup_event_commands : changed_by
+    transfers ||--o{ popup_event_movements : links
+    stock_transactions ||--o{ popup_event_movements : links
+    profiles ||--o{ notification_receipts : receives
+    notifications ||--o{ notification_receipts : tracks
+    notifications ||--o{ notification_events : records
+    notifications ||--o{ notification_deliveries : delivers
 
     %% ── POS V2 (schema only) ──
     products ||--o{ pos_item_mappings : mapped

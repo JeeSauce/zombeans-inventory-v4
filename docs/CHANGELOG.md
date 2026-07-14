@@ -5,6 +5,41 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 8 — Calendar, Popup Events, Notifications, Dashboard — 2026-07-14
+
+Added
+
+- Phase 8 schema/security/functions (migrations 0026–0028): targeted deduplicated notifications,
+  append-only notification/delivery history, current receipts, an idempotent Critical-email
+  outbox, audited calendar commands, permanent-popup engagement sessions, frozen count summaries,
+  and links to already-posted stock effects.
+- Eight operational producers with one enforced severity mapping: negative inventory, expired
+  lots, failed production, overdue/unusual recounts, low/out-of-stock, and pending stock requests.
+  Critical conditions queue immediate in-app and email delivery through a server-only transport.
+- Separate operational and financial dashboard RPCs. All roles receive branch-scoped KPIs,
+  alerts, movements, recount variances, and upcoming events; only `cost.read` can call the
+  valuation function or render the inventory-value card.
+- Responsive `/dashboard`, `/calendar`, `/popups`, `/popups/[id]`, and `/notifications` pages with
+  filters, role-aware controls, Month/Week/Agenda views, Asia/Manila input, loading/empty/success/
+  warning/error states, and a current active-unread notification bell.
+- Popup lifecycle and reconciliation that never mutates inventory. Transfers and consumed/waste/
+  loss/gain entries are posted through the existing atomic ledger workflows, then linked to and
+  validated by the event summary.
+
+Tests
+
+- Real-Postgres notification gates prove all eight severity mappings, one active row per stable
+  dedup key, re-raise and resolve history, targeted RLS, replay-safe read/ack, Critical-only email,
+  and claim/finalize delivery idempotency.
+- Dashboard authorization tests prove Branch Manager, Production Staff, and Inventory Staff
+  cannot call the financial RPC directly, while Super Admin receives exact valuation and the
+  operational payload contains no cost/value fields.
+- Unit tests cover severity, business-time conversion, dashboard ranges, and popup arithmetic;
+  Playwright covers dashboard financial visibility, calendar permissions/create, popup create,
+  and persistent Critical acknowledgement on Chromium and Pixel 7.
+
+Gate: Phase 8 notification dedup/severity and dashboard role-gating suites pass.
+
 ### Phase 7 — Recounts & Daily Operations — 2026-07-13
 
 Added

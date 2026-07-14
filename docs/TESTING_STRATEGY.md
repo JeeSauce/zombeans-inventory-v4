@@ -48,6 +48,17 @@ Deterministic factories; seed clearly marked as development/test data; never see
 CI greps the client bundle (`.next/static`) for the service-role key pattern and fails on any hit;
 `lib/supabase/admin.ts` carries `import "server-only"` so a client import is a build error.
 
+## Phase 8 gate (not one of the numbered scenarios)
+
+- **Notification dedup/severity:** real Postgres must prove one active notification per stable
+  condition, append-only re-raise/resolution/read/ack/delivery history, all eight source-to-severity
+  mappings, Critical-only email, targeted RLS, and idempotent claim/finalize delivery.
+- **Dashboard role gating:** Branch Manager, Production Staff, and Inventory Staff must fail when
+  calling the financial RPC directly. Super Admin must receive exact valuation, and the operational
+  RPC must not contain cost/value fields.
+- **Calendar/popup safety:** permission tests cover manager mutation versus staff read-only access;
+  popup completion must validate a summary without changing balances or the append-only ledger.
+
 ## Coverage focus
 
 Highest rigor on costing math (weighted-average, multi-level recipes, actual-yield cost), FEFO lot
@@ -56,8 +67,9 @@ selection, atomic posting, and idempotency — these are the correctness-critica
 ## Commands
 
 ```bash
-npm run test         # Vitest unit + integration
-npm run test:e2e     # Playwright
-npm run typecheck    # tsc --noEmit
+npm run test              # Vitest unit tests
+npm run test:integration  # Vitest against local Postgres
+npm run test:e2e          # Playwright: Chromium + Pixel 7
+npm run typecheck         # tsc --noEmit
 npm run lint
 ```
