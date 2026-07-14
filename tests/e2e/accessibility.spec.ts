@@ -41,18 +41,32 @@ async function completeLocalSuperAdminStepUp(page: Page) {
 }
 
 async function expectNoSeriousAccessibilityViolations(page: Page) {
-  const results = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-    .analyze();
-  const blocking = results.violations
-    .filter((violation) => violation.impact === "critical" || violation.impact === "serious")
-    .map((violation) => ({
-      id: violation.id,
-      impact: violation.impact,
-      help: violation.help,
-      targets: violation.nodes.flatMap((node) => node.target),
-    }));
-  expect(blocking).toEqual([]);
+  const audit = async (theme: string) => {
+    const results = await new AxeBuilder({ page })
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+      .analyze();
+    const blocking = results.violations
+      .filter((violation) => violation.impact === "critical" || violation.impact === "serious")
+      .map((violation) => ({
+        id: violation.id,
+        impact: violation.impact,
+        help: violation.help,
+        targets: violation.nodes.flatMap((node) => node.target),
+      }));
+    expect(blocking, `${theme} theme accessibility violations`).toEqual([]);
+  };
+
+  const toggle = page.getByRole("button", { name: /Switch to (light|dark) mode/ });
+  await expect(toggle).toBeVisible();
+  const firstTheme = await page
+    .locator("html")
+    .evaluate((element) => (element.classList.contains("dark") ? "dark" : "light"));
+  await audit(firstTheme);
+
+  await toggle.click();
+  const secondTheme = firstTheme === "dark" ? "light" : "dark";
+  await expect(page.locator("html")).toHaveClass(new RegExp(secondTheme));
+  await audit(secondTheme);
 }
 
 const roleRoutes = [
