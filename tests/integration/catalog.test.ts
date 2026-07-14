@@ -80,6 +80,76 @@ afterAll(async () => {
 });
 
 describe("scenario 19 — branch prices are independent", () => {
+  it("atomically inserts, updates, and clears the complete branch price form", async () => {
+    const result = await asUser(acting, ids.super, async (client) => {
+      const inserted = await client.query<{ changed: number }>(
+        `select public.set_product_branch_prices($1, $2::jsonb) changed`,
+        [
+          fx.productId,
+          JSON.stringify([
+            { branchId: fx.commissary, price: 100, taxMode: "none" },
+            { branchId: fx.sanCarlos, price: 150, taxMode: "inclusive" },
+          ]),
+        ],
+      );
+
+      const changed = await client.query<{ changed: number }>(
+        `select public.set_product_branch_prices($1, $2::jsonb) changed`,
+        [
+          fx.productId,
+          JSON.stringify([
+            { branchId: fx.commissary, price: 120, taxMode: "exclusive" },
+            { branchId: fx.sanCarlos, price: null, taxMode: "none" },
+          ]),
+        ],
+      );
+
+      const rows = await client.query<{ branch_id: string; price: string; tax_mode: string }>(
+        `select branch_id, price::text, tax_mode::text
+         from public.branch_prices where product_id = $1`,
+        [fx.productId],
+      );
+      return {
+        inserted: inserted.rows[0]!.changed,
+        changed: changed.rows[0]!.changed,
+        rows: rows.rows,
+      };
+    });
+
+    expect(result.inserted).toBe(2);
+    expect(result.changed).toBe(2);
+    expect(result.rows).toEqual([
+      { branch_id: fx.commissary, price: "120.0000", tax_mode: "exclusive" },
+    ]);
+  });
+
+  it("rejects an invalid batch without partially changing prices", async () => {
+    await admin.query(
+      `insert into public.branch_prices (branch_id, product_id, price)
+       values ($1, $2, 75)`,
+      [fx.commissary, fx.productId],
+    );
+
+    await expect(
+      asUser(acting, ids.super, (client) =>
+        client.query(`select public.set_product_branch_prices($1, $2::jsonb)`, [
+          fx.productId,
+          JSON.stringify([
+            { branchId: fx.commissary, price: 90, taxMode: "none" },
+            { branchId: fx.sanCarlos, price: -1, taxMode: "none" },
+          ]),
+        ]),
+      ),
+    ).rejects.toThrow(/cannot be negative/i);
+
+    const row = await admin.query<{ price: string }>(
+      `select price::text from public.branch_prices
+       where branch_id = $1 and product_id = $2`,
+      [fx.commissary, fx.productId],
+    );
+    expect(row.rows[0]!.price).toBe("75.0000");
+  });
+
   it("keeps per-branch prices independent when one changes", async () => {
     await admin.query(
       `insert into public.branch_prices (branch_id, product_id, price, tax_mode)
@@ -202,6 +272,15 @@ describe("catalog RLS gating", () => {
         ),
       ),
     ).rejects.toThrow(/row-level security/i);
+
+    await expect(
+      asUser(acting, ids.inventory, (client) =>
+        client.query(`select public.set_product_branch_prices($1, $2::jsonb)`, [
+          fx.productId,
+          JSON.stringify([{ branchId: fx.commissary, price: 99, taxMode: "none" }]),
+        ]),
+      ),
+    ).rejects.toThrow(/price\.write required/i);
   });
 
   it("application_settings are readable only with settings.manage", async () => {

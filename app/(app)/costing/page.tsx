@@ -26,6 +26,12 @@ type RawPrice = {
   branch: { name: string } | null;
 };
 
+type RawBatchCost = {
+  recipe_version_id: string;
+  cost: unknown | null;
+  error: string | null;
+};
+
 export default async function CostingPage() {
   const ctx = await getAuthContext();
   if (!ctx.isSuperAdmin || !can("cost.read", ctx.permissions)) redirect("/dashboard");
@@ -74,35 +80,41 @@ export default async function CostingPage() {
   const modifierOptions = (modifierOptionsData as unknown as RawModifierOption[] | null) ?? [];
   const modifierById = new Map(modifierOptions.map((option) => [option.id, option]));
 
-  const costEntries = await Promise.all(
-    recipes.flatMap((recipe) => {
-      const versionId = versionByRecipe.get(recipe.id);
-      if (!versionId) return [];
-      return [
-        supabase
-          .rpc("calculate_recipe_cost", { p_recipe_version_id: versionId })
-          .then(({ data, error }) => {
-            if (error) return { recipeId: recipe.id, cost: null, error: error.message };
-            try {
-              return { recipeId: recipe.id, cost: normalizeRecipeCost(data), error: null };
-            } catch (error) {
-              return {
-                recipeId: recipe.id,
-                cost: null,
-                error: error instanceof Error ? error.message : "Malformed cost result",
-              };
-            }
-          }),
-      ];
-    }),
-  );
   const costs = new Map<string, RecipeCostResult>();
   const costErrors: string[] = [];
-  for (const entry of costEntries) {
-    if (entry?.cost) costs.set(entry.recipeId, entry.cost);
-    else if (entry?.error) {
-      const recipeName = recipes.find((recipe) => recipe.id === entry.recipeId)?.name;
-      costErrors.push(`${recipeName ?? "Unknown recipe"} (${entry.error.replace(/^.*?:\s*/, "")})`);
+
+  if (activeVersions.length > 0) {
+    const recipeByVersion = new Map(
+      activeVersions.map((version) => [version.id, version.recipe_id]),
+    );
+    const { data, error } = await supabase.rpc("calculate_recipe_cost_batch", {
+      p_recipe_version_ids: activeVersions.map((version) => version.id),
+    });
+
+    if (error) {
+      costErrors.push(`Cost calculation unavailable (${error.message.replace(/^.*?:\s*/, "")})`);
+    } else {
+      for (const entry of (data as RawBatchCost[] | null) ?? []) {
+        const recipeId = recipeByVersion.get(entry.recipe_version_id);
+        const recipeName = recipes.find((recipe) => recipe.id === recipeId)?.name;
+        if (!recipeId) {
+          costErrors.push("Unknown recipe (batch result did not match an active version)");
+          continue;
+        }
+        if (entry.error) {
+          costErrors.push(
+            `${recipeName ?? "Unknown recipe"} (${entry.error.replace(/^.*?:\s*/, "")})`,
+          );
+          continue;
+        }
+        try {
+          costs.set(recipeId, normalizeRecipeCost(entry.cost));
+        } catch (error) {
+          costErrors.push(
+            `${recipeName ?? "Unknown recipe"} (${error instanceof Error ? error.message : "Malformed cost result"})`,
+          );
+        }
+      }
     }
   }
 

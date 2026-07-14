@@ -73,24 +73,26 @@ describe("Phase 11 database security contract", () => {
 
   it("binds identity probes to the JWT actor", async () => {
     const own = await asUser(acting, users.super, async (client) => {
-      const result = await client.query<{ admin: boolean; cost: boolean }>(
+      const result = await client.query<{ admin: boolean; branch: boolean; cost: boolean }>(
         `select public.is_super_admin($1) admin,
+                public.has_branch_access($1, $2) branch,
                 public.has_permission($1, 'cost.read') cost`,
-        [users.super],
+        [users.super, crypto.randomUUID()],
       );
       return result.rows[0]!;
     });
-    expect(own).toEqual({ admin: true, cost: true });
+    expect(own).toEqual({ admin: true, branch: true, cost: true });
 
     const crossUser = await asUser(acting, users.manager, async (client) => {
-      const result = await client.query<{ admin: boolean; cost: boolean }>(
+      const result = await client.query<{ admin: boolean; branch: boolean; cost: boolean }>(
         `select public.is_super_admin($1) admin,
+                public.has_branch_access($1, $2) branch,
                 public.has_permission($1, 'cost.read') cost`,
-        [users.super],
+        [users.super, crypto.randomUUID()],
       );
       return result.rows[0]!;
     });
-    expect(crossUser).toEqual({ admin: false, cost: false });
+    expect(crossUser).toEqual({ admin: false, branch: false, cost: false });
   });
 
   it("permission-checks browser-callable reference generators", async () => {

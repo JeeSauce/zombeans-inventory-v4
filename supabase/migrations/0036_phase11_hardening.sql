@@ -51,6 +51,31 @@ $$;
 revoke all on function public.is_super_admin(uuid) from public, anon;
 grant execute on function public.is_super_admin(uuid) to authenticated, service_role;
 
+create or replace function public.has_branch_access(p_uid uuid, p_branch_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p_uid is not null
+    and p_uid = auth.uid()
+    and (
+      not exists (
+        select 1
+        from public.user_branch_assignments uba
+        where uba.profile_id = p_uid
+      )
+      or exists (
+        select 1
+        from public.user_branch_assignments uba
+        where uba.profile_id = p_uid and uba.branch_id = p_branch_id
+      )
+    );
+$$;
+revoke all on function public.has_branch_access(uuid, uuid) from public, anon;
+grant execute on function public.has_branch_access(uuid, uuid) to authenticated, service_role;
+
 -- The four reference generators called directly by Server Actions now validate the actor before
 -- consuming a sequence value. All other generators are internal to already-authorized definer
 -- commands and are no longer executable by authenticated clients.
@@ -286,6 +311,133 @@ end;
 $$;
 revoke all on function public.calculate_recipe_cost_batch(uuid[]) from public, anon;
 grant execute on function public.calculate_recipe_cost_batch(uuid[]) to authenticated, service_role;
+
+-- Persist every product price form as one transaction instead of one read plus one write per
+-- branch. The function repeats permission, branch-scope, and payload validation because it is the
+-- authoritative write boundary; the Server Action validation exists only for useful field errors.
+create or replace function public.set_product_branch_prices(
+  p_product_id uuid,
+  p_prices jsonb
+)
+returns integer
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  v_user uuid := auth.uid();
+  v_entry jsonb;
+  v_branch_id uuid;
+  v_price numeric;
+  v_tax_mode text;
+  v_deleted integer := 0;
+  v_upserted integer := 0;
+begin
+  if v_user is null then
+    raise exception 'Authentication required';
+  end if;
+  if not public.has_permission(v_user, 'price.write') then
+    raise exception 'Permission denied: price.write required';
+  end if;
+  if p_prices is null or jsonb_typeof(p_prices) <> 'array' then
+    raise exception 'Prices must be an array';
+  end if;
+  if jsonb_array_length(p_prices) > 500 then
+    raise exception 'At most 500 branch prices may be changed at once';
+  end if;
+  if not exists (
+    select 1 from public.products p
+    where p.id = p_product_id and p.is_active and p.deleted_at is null
+  ) then
+    raise exception 'Active product not found';
+  end if;
+
+  for v_entry in select value from jsonb_array_elements(p_prices)
+  loop
+    if jsonb_typeof(v_entry) <> 'object'
+       or not (v_entry ? 'branchId')
+       or not (v_entry ? 'price') then
+      raise exception 'Every price entry requires branchId and price';
+    end if;
+
+    begin
+      v_branch_id := (v_entry ->> 'branchId')::uuid;
+    exception when invalid_text_representation then
+      raise exception 'Invalid branch ID';
+    end;
+    if not exists (
+      select 1 from public.branches b
+      where b.id = v_branch_id and b.active and b.deleted_at is null
+    ) then
+      raise exception 'Active branch not found';
+    end if;
+    if not public.has_branch_access(v_user, v_branch_id) then
+      raise exception 'Permission denied for branch';
+    end if;
+
+    if v_entry -> 'price' <> 'null'::jsonb then
+      if jsonb_typeof(v_entry -> 'price') <> 'number' then
+        raise exception 'Price must be numeric or null';
+      end if;
+      v_price := (v_entry ->> 'price')::numeric;
+      if v_price < 0 then
+        raise exception 'Price cannot be negative';
+      end if;
+      v_tax_mode := coalesce(v_entry ->> 'taxMode', 'none');
+      if v_tax_mode not in ('none', 'inclusive', 'exclusive') then
+        raise exception 'Invalid tax mode';
+      end if;
+    end if;
+  end loop;
+
+  if (
+    select count(*) <> count(distinct (entry ->> 'branchId')::uuid)
+    from jsonb_array_elements(p_prices) entry
+  ) then
+    raise exception 'Each branch may appear only once';
+  end if;
+
+  with deleted as (
+    delete from public.branch_prices bp
+    using jsonb_array_elements(p_prices) entry
+    where bp.product_id = p_product_id
+      and bp.branch_id = (entry ->> 'branchId')::uuid
+      and entry -> 'price' = 'null'::jsonb
+    returning bp.id
+  )
+  select count(*)::integer into v_deleted from deleted;
+
+  with upserted as (
+    insert into public.branch_prices (
+      branch_id, product_id, price, tax_mode, active, created_by, updated_by
+    )
+    select
+      (entry ->> 'branchId')::uuid,
+      p_product_id,
+      (entry ->> 'price')::numeric,
+      coalesce(entry ->> 'taxMode', 'none')::public.tax_mode,
+      true,
+      v_user,
+      v_user
+    from jsonb_array_elements(p_prices) entry
+    where entry -> 'price' <> 'null'::jsonb
+    on conflict (branch_id, product_id) where product_id is not null
+    do update set
+      price = excluded.price,
+      tax_mode = excluded.tax_mode,
+      active = true,
+      updated_by = excluded.updated_by
+    returning id
+  )
+  select count(*)::integer into v_upserted from upserted;
+
+  return v_deleted + v_upserted;
+end;
+$$;
+revoke all on function public.set_product_branch_prices(uuid, jsonb) from public, anon;
+grant execute on function public.set_product_branch_prices(uuid, jsonb)
+  to authenticated, service_role;
 
 -- Dashboard/report hot paths. These reverse or extend existing primary/index order to match the
 -- branch-first and time-first filters used by operational pages and protected report RPCs.
