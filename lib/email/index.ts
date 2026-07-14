@@ -1,11 +1,12 @@
 import "server-only";
 import { getServerEnv } from "@/lib/env";
 
-/** Provider-agnostic transactional email. Dev uses the console transport; prod wires Resend/SMTP. */
+/** Provider-agnostic transactional email. Dev uses console; production uses Resend. */
 export interface EmailMessage {
   to: string;
   subject: string;
   text: string;
+  idempotencyKey?: string;
 }
 
 export interface EmailTransport {
@@ -19,16 +20,52 @@ const consoleTransport: EmailTransport = {
   },
 };
 
+function createResendTransport(apiKey: string, from: string): EmailTransport {
+  return {
+    async send({ to, subject, text, idempotencyKey }) {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+        },
+        body: JSON.stringify({ from, to: [to], subject, text }),
+      });
+      if (!response.ok) {
+        const requestId = response.headers.get("x-request-id");
+        throw new Error(
+          `Resend rejected email (HTTP ${response.status}${requestId ? `, request ${requestId}` : ""}).`,
+        );
+      }
+    },
+  };
+}
+
+function allowsLocalE2EConsole(): boolean {
+  if (process.env.E2E_ALLOW_CONSOLE_EMAIL !== "true") return false;
+  try {
+    const hostname = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname;
+    return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "[::1]";
+  } catch {
+    return false;
+  }
+}
+
 export function getEmailTransport(): EmailTransport {
-  const { EMAIL_PROVIDER } = getServerEnv();
+  const { EMAIL_PROVIDER, EMAIL_FROM, RESEND_API_KEY } = getServerEnv();
   switch (EMAIL_PROVIDER) {
-    case "console":
+    case "console": {
+      if (process.env.NODE_ENV === "production" && !allowsLocalE2EConsole()) {
+        throw new Error("EMAIL_PROVIDER=console is forbidden in production");
+      }
       return consoleTransport;
-    case "resend":
+    }
+    case "resend": {
+      if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is required for EMAIL_PROVIDER=resend");
+      return createResendTransport(RESEND_API_KEY, EMAIL_FROM);
+    }
     case "smtp":
-      // Fail loudly until deployment selects and credentials a production adapter.
-      throw new Error(`Email provider "${EMAIL_PROVIDER}" is not yet implemented`);
-    default:
-      return consoleTransport;
+      throw new Error("EMAIL_PROVIDER=smtp is not implemented; use Resend for production");
   }
 }
