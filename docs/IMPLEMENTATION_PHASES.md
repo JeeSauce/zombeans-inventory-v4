@@ -75,11 +75,11 @@ Offline drafts; sync queue; conflict review; barcode scanning; Loyverse mapping 
 importer with preview; POS interfaces without live sync.
 **Gate:** critical tests 17, 18, 24 pass. **Complete 2026-07-14.**
 
-## Phase 11 — Hardening & Deployment ← next
+## Phase 11 — Hardening & Deployment
 
 Security review; RLS penetration tests; performance; accessibility; mobile; recovery testing;
 staging deploy; production checklist; Vercel deploy.
-**Gate:** full critical-scenario suite green; security review signed off.
+**Gate:** full critical-scenario suite green; security review signed off. **Complete 2026-07-14.**
 
 ## End-of-phase report (required each phase)
 

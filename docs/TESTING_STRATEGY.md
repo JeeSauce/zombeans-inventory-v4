@@ -4,6 +4,8 @@
 
 - **Vitest** — unit + integration (domain logic in `lib/**`, Zod schemas, RLS-via-service checks).
 - **Playwright** — e2e happy + failure paths, desktop + mobile projects.
+- Playwright serializes shared seeded-database flows and runs the production build. Its console
+  email override is accepted only with an explicit test flag and a loopback Supabase URL.
 - **RLS authorization tests** — spin real Supabase (local) sessions per role and assert reads/
   writes are allowed/denied. These are first-class, not optional.
 
@@ -42,6 +44,43 @@ Deterministic factories; seed clearly marked as development/test data; never see
 22. Excessive code attempts are blocked. _(P1)_
 23. Service-role credentials never appear in browser bundles. _(P1; CI bundle scan)_
 24. POS import previews do not post inventory before confirmation. _(P10)_
+
+## Phase 11 critical-scenario evidence map
+
+Every scenario has an automated gate; real-Postgres tests run serially after a clean database
+reset. File/test names below are stable review anchors rather than a claim based only on phase
+labels.
+
+| #   | Automated evidence                                                                                                                   |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `tests/integration/recipes.test.ts` - “enforces critical scenario 1 at the function and table layers”; `rls.test.ts` permission gate |
+| 2   | `tests/integration/production.test.ts` - expired/quarantined FEFO skip and expired-only refusal                                      |
+| 3   | `tests/integration/production.test.ts` - “rolls back all lots, balances, ledger rows, and order status when any input is short”      |
+| 4   | `tests/integration/production.test.ts` - duplicate completion returns the existing transaction without double mutation               |
+| 5   | `tests/integration/stock.test.ts` - idempotent transfer receiving with exact lot/balance/ledger/discrepancy counts                   |
+| 6   | `tests/integration/purchasing.test.ts` - partial delivery posts only accepted quantity and blocks over-receipt                       |
+| 7   | `tests/integration/purchasing.test.ts` plus `tests/unit/costing.test.ts` - exact weighted-average blend and replay                   |
+| 8   | `tests/integration/recipes.test.ts` - activation snapshot remains unchanged after source cost changes                                |
+| 9   | `tests/integration/recipes.test.ts` - sale recipes reject raw inputs and consume the prepared sub-product boundary                   |
+| 10  | `tests/integration/stock.test.ts` - exact negative balance, full ledger quantity, and active Critical alert                          |
+| 11  | `tests/integration/recounts.test.ts` - frozen formula and one exact compensating adjustment                                          |
+| 12  | `tests/integration/recounts.test.ts` - function and direct-RLS writes rejected after day close                                       |
+| 13  | `tests/integration/recounts.test.ts` - Super Admin reason, single audit/replay, and later-change attribution                         |
+| 14  | `tests/integration/phase9.test.ts` - hidden soft delete, Super Admin listing, exact restore, idempotent replay                       |
+| 15  | `tests/integration/phase9.test.ts` - eligible purge with in-window, held, dependency, and ledger protection                          |
+| 16  | `tests/integration/phase9.test.ts` - pre-existing and purge audit rows survive business-row removal                                  |
+| 17  | `tests/integration/phase10.test.ts` - duplicate offline submission adds no second submission/recount/ledger/balance effect           |
+| 18  | `tests/integration/phase10.test.ts` - stale overlapping recount is held for explicit reasoned review                                 |
+| 19  | `tests/integration/catalog.test.ts` - independent branch prices plus atomic full-form insert/update/delete                           |
+| 20  | `tests/integration/catalog.test.ts` and `tests/unit/tax.test.ts` - VAT disabled/default, none/inclusive/exclusive behavior           |
+| 21  | `tests/unit/stepup.test.ts` - expiry and consumed-code single-use rejection                                                          |
+| 22  | `tests/unit/stepup.test.ts` - max-attempt lockout even when the later code is correct                                                |
+| 23  | `npm run scan:bundle` - configured service-role marker must be absent from every `.next/static` file; `server-only` import backstop  |
+| 24  | `tests/integration/phase10.test.ts` - preview is inventory-side-effect-free; explicit confirmation posts once                        |
+
+Phase 11 additionally runs `hardening.test.ts` (definer/grant/index controls),
+`rls-penetration.test.ts` (all tables x roles x verbs plus branch bypass),
+`deployment-config.test.ts`, `email.test.ts`, and `accessibility.spec.ts`.
 
 ## Scenario #23 enforcement
 
@@ -99,6 +138,7 @@ selection, atomic posting, offline conflict detection, preview/confirm separatio
 ```bash
 npm run test              # Vitest unit tests
 npm run test:integration  # Vitest against local Postgres
+npm run test:recovery     # Focused Phase 9 restore/purge/backup drill
 npm run test:e2e          # Playwright: Chromium + Pixel 7
 npm run typecheck         # tsc --noEmit
 npm run lint

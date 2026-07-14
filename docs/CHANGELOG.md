@@ -5,6 +5,45 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 11 — Hardening & Deployment — 2026-07-14
+
+Security
+
+- Added migration `0036` to remove ambient function execution, bind identity/branch helpers to the
+  JWT actor, fail closed for unassigned operational staff, tighten branch policies, protect
+  browser-callable generators, and add an atomic branch-price boundary.
+- Added an exhaustive business-table × role × verb RLS penetration suite, real two-branch bypass
+  probes, protected-table direct-DML denial, complete definer/search-path/grant checks, and a
+  signed evidence inventory in `SECURITY_REVIEW.md`.
+- Implemented server-only Resend email delivery with production console rejection, idempotency
+  headers, sanitized errors, and unit coverage. No provider key or hosted setting was added.
+
+Performance and quality
+
+- Replaced per-recipe costing RPCs with one bounded batch call and per-branch price loops with one
+  transactional RPC. Added six EXPLAIN-backed indexes for balance, ledger, production, recount,
+  dashboard, and report hot paths.
+- Added skip navigation, visible focus, reduced-motion handling, accessible light/dark contrast,
+  coarse-pointer targets, mobile overflow checks, and axe Playwright coverage on Chromium/Pixel 7.
+- Added a focused recovery command and expanded the scratch-restore runbook, including ledger and
+  audit acceptance evidence.
+
+Deployment readiness
+
+- Pinned Node/Next/React/Supabase framework versions; added conservative CSP/security headers,
+  explicit PWA cache behavior, minimal framework-owned `vercel.json`, and CI database/browser jobs.
+- Rebuilt `.env.example` and `DEPLOYMENT.md` with Preview/Production scope, the Zombeans team ID,
+  migration/seed/bootstrap order, smoke checks, rollback, and checked operator-only TODOs. No
+  Vercel project was created/linked and no production deployment or secret was used.
+
+Tests
+
+- Added explicit evidence mapping for all 24 critical scenarios plus deployment/email/accessibility
+  gates. Final evidence includes 77 unit tests, 99 real-Postgres integration tests, 84 passing E2E
+  tests with 8 intentional project skips, a clean recovery drill, bundle scanning, and zero
+  high/critical production advisories. Two moderate build-time Next/PostCSS findings are documented
+  as an accepted bounded residual.
+
 ### Phase 10 — Offline & POS Preparation — 2026-07-14
 
 Added

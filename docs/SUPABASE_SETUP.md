@@ -41,8 +41,11 @@ Local anon/service keys are printed by `supabase start`. Studio: http://localhos
 - **Super Admin step-up**: after password success, a 6-digit code is generated server-side, only a
   hash stored (`email_code_challenges`), TTL ~5 min, single-use, attempt- and rate-limited, all
   attempts audited. A full-privilege session is issued only after verification.
-- Configure the transactional email provider via env (`EMAIL_PROVIDER`, `RESEND_API_KEY` / SMTP).
-  Local uses the `console` transport / Inbucket.
+- Configure the transactional email provider via env (`EMAIL_PROVIDER=resend`, `RESEND_API_KEY`).
+  Local uses the `console` transport; console is rejected in production and SMTP is not implemented.
+- Production and Inventory users require explicit `user_branch_assignments` and fail closed while
+  unassigned. Super Admin is global; the MVP Branch Manager is global only while it has no
+  assignments.
 
 ## Storage
 
