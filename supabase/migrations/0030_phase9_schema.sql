@@ -157,7 +157,8 @@ create or replace function public.tg_guard_phase9_lifecycle()
 returns trigger language plpgsql set search_path = public as $$
 begin
   if tg_op = 'DELETE' then
-    if current_setting('zombeans.lifecycle_command', true) is distinct from 'on' then
+    if current_user <> 'postgres'
+      and current_setting('zombeans.lifecycle_command', true) is distinct from 'on' then
       raise exception 'Hard delete must use the Phase 9 purge routine';
     end if;
     return old;
@@ -165,6 +166,7 @@ begin
 
   if row(old.deleted_at, old.deleted_by, old.purge_at)
      is distinct from row(new.deleted_at, new.deleted_by, new.purge_at)
+     and current_user <> 'postgres'
      and current_setting('zombeans.lifecycle_command', true) is distinct from 'on' then
     raise exception 'Lifecycle columns must use a Phase 9 lifecycle command';
   end if;
