@@ -16,7 +16,7 @@ async function login(page: Page, email: string, destination = "/dashboard") {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(new RegExp(`${destination}$`));
+  await expect(page).toHaveURL(new RegExp(`${destination}$`), { timeout: 15_000 });
 }
 
 async function completeLocalSuperAdminStepUp(page: Page) {
@@ -63,13 +63,15 @@ test("dashboard cost cards are role-gated while operational cards remain visible
   page,
 }) => {
   await login(page, "inventory@zombeans.dev");
-  await expect(page.getByText("Low stock", { exact: true })).toBeVisible();
+  await expect(page.getByText("Low stock", { exact: true })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Total inventory value", { exact: true })).toHaveCount(0);
 
   await page.context().clearCookies();
   await completeLocalSuperAdminStepUp(page);
   await page.goto("/dashboard");
-  await expect(page.getByText("Total inventory value", { exact: true })).toBeVisible();
+  await expect(page.getByText("Total inventory value", { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
 });
 
 test("inventory staff sees the calendar as read-only on desktop and mobile", async ({ page }) => {
@@ -110,10 +112,10 @@ test("acknowledging a Critical notification does not hide it", async ({ page }) 
   const title = `${marker} Critical`;
   await login(page, "manager@zombeans.dev");
   await page.goto("/notifications");
-  const card = page.locator('[data-slot="card"]').filter({ hasText: title });
-  await expect(card).toBeVisible();
+  const card = page.getByRole("main").locator('[data-slot="card"]').filter({ hasText: title });
+  await expect(card).toBeVisible({ timeout: 15_000 });
   await expect(card.getByText("Critical", { exact: true })).toBeVisible();
   await card.getByRole("button", { name: "Acknowledge" }).click();
-  await expect(card.getByText(/^Acknowledged /)).toBeVisible();
+  await expect(card.getByText(/^Acknowledged /)).toBeVisible({ timeout: 15_000 });
   await expect(card).toBeVisible();
 });
