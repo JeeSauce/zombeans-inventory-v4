@@ -38,6 +38,29 @@
   --brand-glow: #3ade3a;
 }
 
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  aside,
+  header,
+  nav,
+  .print-hidden {
+    display: none !important;
+  }
+
+  .print-card {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  [data-slot="table-container"] {
+    overflow: visible !important;
+  }
+}
+
 /* Dark (brand) theme — exact live-site values */
 .dark {
   --background: #203222;
