@@ -109,12 +109,16 @@ export async function transitionDraft(id: string, event: DraftEvent): Promise<Of
   return next;
 }
 
-export function createDraftIdentity() {
+export function createDraftIdentity(
+  snapshot: { id: string; capturedAt: string },
+  draftId = crypto.randomUUID(),
+) {
   const now = new Date().toISOString();
   return {
-    id: crypto.randomUUID(),
+    id: draftId,
     idempotencyKey: crypto.randomUUID(),
-    snapshotAt: now,
+    snapshotId: snapshot.id,
+    snapshotAt: snapshot.capturedAt,
     clientCreatedAt: now,
     createdAt: now,
     updatedAt: now,

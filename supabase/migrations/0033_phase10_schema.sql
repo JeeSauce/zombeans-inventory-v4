@@ -15,6 +15,38 @@ create type public.pos_movement_type as enum ('sale', 'refund');
 create sequence if not exists public.offline_submission_ref_seq as bigint start 1;
 create sequence if not exists public.pos_import_ref_seq as bigint start 1;
 
+-- Server-issued snapshot receipts prevent a browser from forging a future timestamp to suppress a
+-- conflict. A receipt is scoped to one actor, client draft, branch, type, and normalized item set.
+create table public.offline_snapshots (
+  id                  uuid primary key default gen_random_uuid(),
+  snapshot_type       public.offline_submission_type not null,
+  branch_id           uuid not null references public.branches(id) on delete restrict,
+  client_draft_id     uuid not null,
+  production_order_id uuid references public.production_orders(id) on delete restrict,
+  captured_at         timestamptz not null default now(),
+  expires_at          timestamptz not null default (now() + interval '30 days'),
+  created_by          uuid not null references public.profiles(id) on delete restrict,
+  audit_log_id        uuid not null unique references public.audit_logs(id) on delete restrict,
+  created_at          timestamptz not null default now(),
+  constraint offline_snapshots_expiry check (expires_at > captured_at),
+  constraint offline_snapshots_type_target check (
+    (snapshot_type = 'recount' and production_order_id is null)
+    or (snapshot_type = 'production' and production_order_id is not null)
+  ),
+  unique (created_by, client_draft_id)
+);
+create index offline_snapshots_actor_expiry
+  on public.offline_snapshots(created_by, expires_at desc);
+
+create table public.offline_snapshot_items (
+  id          uuid primary key default gen_random_uuid(),
+  snapshot_id uuid not null references public.offline_snapshots(id) on delete restrict,
+  item_id     uuid not null references public.inventory_items(id) on delete restrict,
+  created_at  timestamptz not null default now(),
+  unique (snapshot_id, item_id)
+);
+create index offline_snapshot_items_scope on public.offline_snapshot_items(item_id, snapshot_id);
+
 -- Durable receipt for every device submission. Payloads contain operational quantities only and
 -- are exposed to authenticated callers through narrowly scoped safe RPCs, not table grants.
 create table public.offline_submissions (
@@ -24,6 +56,7 @@ create table public.offline_submissions (
   status                     public.offline_submission_status not null,
   branch_id                  uuid not null references public.branches(id) on delete restrict,
   client_draft_id            uuid not null,
+  snapshot_id                uuid not null unique references public.offline_snapshots(id) on delete restrict,
   client_created_at          timestamptz not null,
   snapshot_at                timestamptz not null,
   business_date              date,
@@ -42,9 +75,6 @@ create table public.offline_submissions (
   updated_at                 timestamptz not null default now(),
   version                    integer not null default 1,
   constraint offline_submissions_payload_object check (jsonb_typeof(payload) = 'object'),
-  constraint offline_submissions_snapshot_order check (
-    snapshot_at >= client_created_at - interval '5 minutes'
-  ),
   constraint offline_submissions_conflict_state check (
     (status = 'review_required' and conflict_reason is not null
       and length(btrim(conflict_reason)) >= 3 and resolved_by is null and resolved_at is null)
@@ -261,6 +291,9 @@ $$;
 create trigger offline_submission_items_append_only
   before update or delete on public.offline_submission_items
   for each row execute function public.tg_phase10_append_only();
+create trigger offline_snapshot_items_append_only
+  before update or delete on public.offline_snapshot_items
+  for each row execute function public.tg_phase10_append_only();
 create trigger offline_conflict_resolutions_append_only
   before update or delete on public.offline_conflict_resolutions
   for each row execute function public.tg_phase10_append_only();
@@ -296,4 +329,3 @@ from public.roles r
 join public.permissions p on p.slug = 'offline.sync'
 where r.key in ('production', 'inventory')
 on conflict do nothing;
-

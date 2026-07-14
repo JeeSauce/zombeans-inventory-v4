@@ -94,6 +94,156 @@ revoke all on function public.lookup_inventory_item_by_barcode(text) from public
 grant execute on function public.lookup_inventory_item_by_barcode(text)
   to authenticated, service_role;
 
+-- Issue an unforgeable server-time snapshot receipt for one device draft and normalized scope.
+create or replace function public.issue_offline_snapshot(
+  p_snapshot_type public.offline_submission_type,
+  p_branch_id uuid,
+  p_client_draft_id uuid,
+  p_item_ids jsonb default '[]'::jsonb,
+  p_production_order_id uuid default null
+) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  v_user uuid := auth.uid();
+  v_existing public.offline_snapshots%rowtype;
+  v_snapshot_id uuid := gen_random_uuid();
+  v_captured_at timestamptz := now();
+  v_expires_at timestamptz := now() + interval '30 days';
+  v_audit_id uuid;
+  v_count integer;
+  v_distinct integer;
+  v_order public.production_orders%rowtype;
+begin
+  if v_user is null or not public.has_permission(v_user, 'offline.sync') then
+    raise exception 'Permission denied: offline.sync required';
+  end if;
+  if p_client_draft_id is null then raise exception 'Client draft ID is required'; end if;
+  if not public.has_branch_access(v_user, p_branch_id) then
+    raise exception 'Permission denied for branch';
+  end if;
+  perform 1 from public.branches
+  where id = p_branch_id and active and deleted_at is null;
+  if not found then raise exception 'Active branch not found'; end if;
+
+  perform pg_advisory_xact_lock(hashtextextended(
+    'offline-snapshot:' || v_user::text || ':' || p_client_draft_id::text, 0
+  ));
+  select * into v_existing from public.offline_snapshots
+  where created_by = v_user and client_draft_id = p_client_draft_id;
+  if found then
+    if v_existing.snapshot_type <> p_snapshot_type
+       or v_existing.branch_id <> p_branch_id
+       or v_existing.production_order_id is distinct from p_production_order_id then
+      raise exception 'Client draft already has a different snapshot scope';
+    end if;
+    if p_snapshot_type = 'recount' and (
+      (select count(*) from public.offline_snapshot_items where snapshot_id = v_existing.id)
+        <> jsonb_array_length(p_item_ids)
+      or exists (
+        select 1 from jsonb_array_elements_text(p_item_ids) input
+        where not exists (
+          select 1 from public.offline_snapshot_items osi
+          where osi.snapshot_id = v_existing.id and osi.item_id = input.value::uuid
+        )
+      )
+    ) then
+      raise exception 'Client draft already has a different snapshot scope';
+    end if;
+    return jsonb_build_object(
+      'id', v_existing.id,
+      'capturedAt', v_existing.captured_at,
+      'expiresAt', v_existing.expires_at,
+      'replayed', true
+    );
+  end if;
+
+  if p_snapshot_type = 'recount' then
+    if not public.has_permission(v_user, 'recount.perform') then
+      raise exception 'Permission denied: recount.perform required';
+    end if;
+    if p_item_ids is null or jsonb_typeof(p_item_ids) <> 'array'
+       or jsonb_array_length(p_item_ids) < 1 or jsonb_array_length(p_item_ids) > 100 then
+      raise exception 'Offline recount snapshot requires 1 to 100 items';
+    end if;
+    select count(*)::int, count(distinct value)::int into v_count, v_distinct
+    from jsonb_array_elements_text(p_item_ids);
+    if v_count <> v_distinct then raise exception 'Snapshot items must be unique'; end if;
+    begin
+      perform value::uuid from jsonb_array_elements_text(p_item_ids);
+    exception when others then
+      raise exception 'Snapshot contains an invalid item';
+    end;
+    if exists (
+      select 1 from jsonb_array_elements_text(p_item_ids) input
+      where not exists (
+        select 1 from public.inventory_items ii
+        where ii.id = input.value::uuid and ii.active and ii.trackable
+          and ii.deleted_at is null
+      )
+    ) then raise exception 'Snapshot item is inactive or unavailable'; end if;
+    if p_production_order_id is not null then
+      raise exception 'Recount snapshot cannot target a production order';
+    end if;
+  else
+    if not public.has_permission(v_user, 'production.record') then
+      raise exception 'Permission denied: production.record required';
+    end if;
+    select * into v_order from public.production_orders
+    where id = p_production_order_id and branch_id = p_branch_id;
+    if not found then raise exception 'Production order not found'; end if;
+    if v_order.status <> 'in_progress' then
+      raise exception 'Production order must be in progress';
+    end if;
+  end if;
+
+  insert into public.audit_logs (
+    actor_id, action, entity_type, entity_id, after, branch_id, correlation_id
+  ) values (
+    v_user, 'offline.snapshot.issued', 'offline_snapshot', v_snapshot_id::text,
+    jsonb_build_object(
+      'snapshot_type', p_snapshot_type,
+      'client_draft_id', p_client_draft_id,
+      'captured_at', v_captured_at,
+      'item_count', case when p_snapshot_type = 'recount' then v_count else null end
+    ),
+    p_branch_id, p_client_draft_id
+  ) returning id into v_audit_id;
+
+  insert into public.offline_snapshots (
+    id, snapshot_type, branch_id, client_draft_id, production_order_id,
+    captured_at, expires_at, created_by, audit_log_id
+  ) values (
+    v_snapshot_id, p_snapshot_type, p_branch_id, p_client_draft_id,
+    p_production_order_id, v_captured_at, v_expires_at, v_user, v_audit_id
+  );
+  if p_snapshot_type = 'recount' then
+    insert into public.offline_snapshot_items (snapshot_id, item_id)
+    select v_snapshot_id, value::uuid from jsonb_array_elements_text(p_item_ids);
+  else
+    insert into public.offline_snapshot_items (snapshot_id, item_id)
+    select v_snapshot_id, item_id from (
+      select poi.item_id from public.production_order_inputs poi
+      where poi.production_order_id = p_production_order_id
+      union
+      select v_order.output_item_id
+    ) scope;
+  end if;
+
+  return jsonb_build_object(
+    'id', v_snapshot_id,
+    'capturedAt', v_captured_at,
+    'expiresAt', v_expires_at,
+    'replayed', false
+  );
+end;
+$$;
+revoke all on function public.issue_offline_snapshot(
+  public.offline_submission_type, uuid, uuid, jsonb, uuid
+) from public;
+grant execute on function public.issue_offline_snapshot(
+  public.offline_submission_type, uuid, uuid, jsonb, uuid
+) to authenticated, service_role;
+
 -- Private recount application helper. It composes the Phase 7 primitives and therefore preserves
 -- lot handling, cost snapshots, day-close checks, unusual thresholds, alerts, and replay behavior.
 create or replace function public.phase10_apply_offline_recount(
@@ -201,8 +351,8 @@ create or replace function public.submit_offline_recount(
   p_branch_id uuid,
   p_business_date date,
   p_client_draft_id uuid,
+  p_snapshot_id uuid,
   p_client_created_at timestamptz,
-  p_snapshot_at timestamptz,
   p_idempotency_key uuid,
   p_reason text,
   p_lines jsonb
@@ -224,6 +374,7 @@ declare
   v_distinct integer;
   v_line jsonb;
   v_physical numeric;
+  v_snapshot public.offline_snapshots%rowtype;
 begin
   if v_user is null
      or not public.has_permission(v_user, 'offline.sync')
@@ -240,11 +391,8 @@ begin
      or p_business_date > (now() at time zone 'Asia/Manila')::date then
     raise exception 'Business date must not be in the future';
   end if;
-  if p_client_created_at is null or p_snapshot_at is null
-     or p_snapshot_at > now() + interval '5 minutes'
-     or p_snapshot_at < now() - interval '30 days'
-     or p_snapshot_at < p_client_created_at - interval '5 minutes' then
-    raise exception 'Offline recount snapshot is invalid or expired';
+  if p_client_created_at is null or p_client_created_at > now() + interval '5 minutes' then
+    raise exception 'Offline recount creation time is invalid';
   end if;
   if not public.has_branch_access(v_user, p_branch_id) then
     raise exception 'Permission denied for branch';
@@ -284,6 +432,16 @@ begin
     raise exception 'Client draft was already submitted with another key';
   end if;
 
+  select * into v_snapshot from public.offline_snapshots
+  where id = p_snapshot_id for update;
+  if not found or v_snapshot.snapshot_type <> 'recount'
+     or v_snapshot.branch_id <> p_branch_id
+     or v_snapshot.client_draft_id <> p_client_draft_id
+     or v_snapshot.created_by <> v_user
+     or v_snapshot.expires_at <= now() then
+    raise exception 'Offline recount snapshot is invalid or expired';
+  end if;
+
   if p_lines is null or jsonb_typeof(p_lines) <> 'array'
      or jsonb_array_length(p_lines) < 1 or jsonb_array_length(p_lines) > 100 then
     raise exception 'Offline recount requires 1 to 100 lines';
@@ -291,6 +449,18 @@ begin
   select count(*)::int, count(distinct value->>'itemId')::int
     into v_count, v_distinct from jsonb_array_elements(p_lines);
   if v_count <> v_distinct then raise exception 'Recount items must be unique'; end if;
+  if (select count(*) from public.offline_snapshot_items where snapshot_id = v_snapshot.id)
+       <> v_count
+     or exists (
+       select 1 from jsonb_array_elements(p_lines) input
+       where not exists (
+         select 1 from public.offline_snapshot_items osi
+         where osi.snapshot_id = v_snapshot.id
+           and osi.item_id = (input.value->>'itemId')::uuid
+       )
+     ) then
+    raise exception 'Offline recount lines do not match the server snapshot scope';
+  end if;
 
   for v_line in select value from jsonb_array_elements(p_lines)
   loop
@@ -330,7 +500,7 @@ begin
     join public.stock_transaction_lines stl on stl.txn_id = st.id
     join jsonb_array_elements(p_lines) input
       on (input.value->>'itemId')::uuid = stl.item_id
-    where st.status = 'posted' and st.created_at > p_snapshot_at
+    where st.status = 'posted' and st.created_at > v_snapshot.captured_at
       and case when stl.qty >= 0 then st.dest_branch_id else st.source_branch_id end = p_branch_id
   ) then
     v_conflict := 'Inventory moved after this draft snapshot; explicit review is required';
@@ -367,13 +537,13 @@ begin
   ) returning id into v_audit_id;
 
   insert into public.offline_submissions (
-    id, reference, submission_type, status, branch_id, client_draft_id,
+    id, reference, submission_type, status, branch_id, client_draft_id, snapshot_id,
     client_created_at, snapshot_at, business_date, idempotency_key, payload,
     conflict_reason, submitted_by, result_recount_session_id, result_stock_txn_id,
     audit_log_id
   ) values (
     v_submission_id, v_reference, 'recount', v_status, p_branch_id, p_client_draft_id,
-    p_client_created_at, p_snapshot_at, p_business_date, p_idempotency_key,
+    v_snapshot.id, p_client_created_at, v_snapshot.captured_at, p_business_date, p_idempotency_key,
     jsonb_build_object('reason', btrim(p_reason), 'lines', p_lines),
     v_conflict, v_user, v_session_id, v_stock_txn_id, v_audit_id
   );
@@ -397,17 +567,17 @@ begin
 end;
 $$;
 revoke all on function public.submit_offline_recount(
-  uuid, date, uuid, timestamptz, timestamptz, uuid, text, jsonb
+  uuid, date, uuid, uuid, timestamptz, uuid, text, jsonb
 ) from public;
 grant execute on function public.submit_offline_recount(
-  uuid, date, uuid, timestamptz, timestamptz, uuid, text, jsonb
+  uuid, date, uuid, uuid, timestamptz, uuid, text, jsonb
 ) to authenticated, service_role;
 
 create or replace function public.submit_offline_production(
   p_production_order_id uuid,
   p_client_draft_id uuid,
+  p_snapshot_id uuid,
   p_client_created_at timestamptz,
-  p_snapshot_at timestamptz,
   p_idempotency_key uuid,
   p_actual_output_qty numeric,
   p_output_lot_number text,
@@ -427,6 +597,7 @@ declare
   v_status public.offline_submission_status;
   v_conflict text;
   v_payload jsonb;
+  v_snapshot public.offline_snapshots%rowtype;
 begin
   if v_user is null
      or not public.has_permission(v_user, 'offline.sync')
@@ -436,11 +607,8 @@ begin
   if p_idempotency_key is null or p_client_draft_id is null then
     raise exception 'Stable draft and idempotency keys are required';
   end if;
-  if p_client_created_at is null or p_snapshot_at is null
-     or p_snapshot_at > now() + interval '5 minutes'
-     or p_snapshot_at < now() - interval '30 days'
-     or p_snapshot_at < p_client_created_at - interval '5 minutes' then
-    raise exception 'Offline production snapshot is invalid or expired';
+  if p_client_created_at is null or p_client_created_at > now() + interval '5 minutes' then
+    raise exception 'Offline production creation time is invalid';
   end if;
 
   perform pg_advisory_xact_lock(hashtextextended(
@@ -473,9 +641,22 @@ begin
     raise exception 'Client draft was already submitted with another key';
   end if;
 
+  select * into v_snapshot from public.offline_snapshots
+  where id = p_snapshot_id for update;
+  if not found or v_snapshot.snapshot_type <> 'production'
+     or v_snapshot.production_order_id <> p_production_order_id
+     or v_snapshot.client_draft_id <> p_client_draft_id
+     or v_snapshot.created_by <> v_user
+     or v_snapshot.expires_at <= now() then
+    raise exception 'Offline production snapshot is invalid or expired';
+  end if;
+
   select * into v_order from public.production_orders
   where id = p_production_order_id for update;
   if not found then raise exception 'Production order not found'; end if;
+  if v_snapshot.branch_id <> v_order.branch_id then
+    raise exception 'Offline production snapshot has a different branch scope';
+  end if;
   if not public.has_branch_access(v_user, v_order.branch_id) then
     raise exception 'Permission denied for branch';
   end if;
@@ -493,7 +674,7 @@ begin
   if v_order.status <> 'in_progress' then
     v_conflict := 'Production order is no longer in progress';
     v_status := 'review_required';
-  elsif v_order.updated_at > p_snapshot_at then
+  elsif v_order.updated_at > v_snapshot.captured_at then
     v_conflict := 'Production order changed after this draft snapshot';
     v_status := 'review_required';
   else
@@ -522,12 +703,12 @@ begin
   ) returning id into v_audit_id;
 
   insert into public.offline_submissions (
-    id, reference, submission_type, status, branch_id, client_draft_id,
+    id, reference, submission_type, status, branch_id, client_draft_id, snapshot_id,
     client_created_at, snapshot_at, idempotency_key, payload, conflict_reason,
     submitted_by, result_production_order_id, audit_log_id
   ) values (
     v_submission_id, v_reference, 'production', v_status, v_order.branch_id,
-    p_client_draft_id, p_client_created_at, p_snapshot_at, p_idempotency_key,
+    p_client_draft_id, v_snapshot.id, p_client_created_at, v_snapshot.captured_at, p_idempotency_key,
     v_payload, v_conflict, v_user, p_production_order_id, v_audit_id
   );
 
@@ -551,10 +732,10 @@ begin
 end;
 $$;
 revoke all on function public.submit_offline_production(
-  uuid, uuid, timestamptz, timestamptz, uuid, numeric, text, date, date, text, jsonb
+  uuid, uuid, uuid, timestamptz, uuid, numeric, text, date, date, text, jsonb
 ) from public;
 grant execute on function public.submit_offline_production(
-  uuid, uuid, timestamptz, timestamptz, uuid, numeric, text, date, date, text, jsonb
+  uuid, uuid, uuid, timestamptz, uuid, numeric, text, date, date, text, jsonb
 ) to authenticated, service_role;
 
 create or replace function public.list_offline_conflicts()

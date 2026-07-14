@@ -11,6 +11,7 @@ import {
   loyverseMappingSchema,
   offlineConflictResolutionSchema,
   offlineDraftSyncSchema,
+  offlineSnapshotRequestSchema,
   posConfirmSchema,
   posPreviewSchema,
   type BarcodeLookupResult,
@@ -61,6 +62,35 @@ function revalidateOfflinePos() {
   revalidatePath("/dashboard");
 }
 
+export async function issueOfflineSnapshotAction(input: unknown): Promise<{
+  error?: string;
+  snapshot?: { id: string; capturedAt: string; expiresAt: string };
+}> {
+  try {
+    const parsed = offlineSnapshotRequestSchema.safeParse(input);
+    if (!parsed.success) {
+      return { error: parsed.error.issues[0]?.message ?? "Offline snapshot request is invalid." };
+    }
+    await requirePermission("offline.sync");
+    if (parsed.data.type === "recount") await requirePermission("recount.perform");
+    else await requirePermission("production.record");
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("issue_offline_snapshot", {
+      p_snapshot_type: parsed.data.type,
+      p_branch_id: parsed.data.branchId,
+      p_client_draft_id: parsed.data.clientDraftId,
+      p_item_ids: parsed.data.type === "recount" ? parsed.data.itemIds : [],
+      p_production_order_id:
+        parsed.data.type === "production" ? parsed.data.productionOrderId : null,
+    });
+    if (error) return { error: cleanError(error) };
+    const result = data as { id: string; capturedAt: string; expiresAt: string };
+    return { snapshot: result };
+  } catch (error) {
+    return { error: cleanError(error) };
+  }
+}
+
 export async function syncOfflineDraftAction(input: unknown): Promise<Phase10ActionState> {
   try {
     const parsed = offlineDraftSyncSchema.safeParse(input);
@@ -76,8 +106,8 @@ export async function syncOfflineDraftAction(input: unknown): Promise<Phase10Act
         p_branch_id: parsed.data.payload.branchId,
         p_business_date: parsed.data.payload.businessDate,
         p_client_draft_id: parsed.data.id,
+        p_snapshot_id: parsed.data.snapshotId,
         p_client_created_at: parsed.data.clientCreatedAt,
-        p_snapshot_at: parsed.data.snapshotAt,
         p_idempotency_key: parsed.data.idempotencyKey,
         p_reason: parsed.data.payload.reason,
         p_lines: parsed.data.payload.lines.map((line) => ({
@@ -107,8 +137,8 @@ export async function syncOfflineDraftAction(input: unknown): Promise<Phase10Act
     const { data, error } = await supabase.rpc("submit_offline_production", {
       p_production_order_id: parsed.data.payload.productionOrderId,
       p_client_draft_id: parsed.data.id,
+      p_snapshot_id: parsed.data.snapshotId,
       p_client_created_at: parsed.data.clientCreatedAt,
-      p_snapshot_at: parsed.data.snapshotAt,
       p_idempotency_key: parsed.data.idempotencyKey,
       p_actual_output_qty: parsed.data.payload.actualOutputQty,
       p_output_lot_number: parsed.data.payload.outputLotNumber,

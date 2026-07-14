@@ -72,6 +72,7 @@ export const offlineProductionPayloadSchema = z
 const draftBaseSchema = z.object({
   id: z.string().uuid(),
   idempotencyKey: z.string().uuid(),
+  snapshotId: z.string().uuid(),
   label: z.string().trim().min(1).max(200),
   snapshotAt: z.string().datetime({ offset: true }),
   clientCreatedAt: z.string().datetime({ offset: true }),
@@ -95,6 +96,7 @@ export const offlineDraftSyncSchema = z.discriminatedUnion("type", [
     type: z.literal("recount"),
     id: z.string().uuid(),
     idempotencyKey: z.string().uuid(),
+    snapshotId: z.string().uuid(),
     snapshotAt: z.string().datetime({ offset: true }),
     clientCreatedAt: z.string().datetime({ offset: true }),
     payload: offlineRecountPayloadSchema,
@@ -103,9 +105,25 @@ export const offlineDraftSyncSchema = z.discriminatedUnion("type", [
     type: z.literal("production"),
     id: z.string().uuid(),
     idempotencyKey: z.string().uuid(),
+    snapshotId: z.string().uuid(),
     snapshotAt: z.string().datetime({ offset: true }),
     clientCreatedAt: z.string().datetime({ offset: true }),
     payload: offlineProductionPayloadSchema,
+  }),
+]);
+
+export const offlineSnapshotRequestSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("recount"),
+    branchId: z.string().uuid(),
+    clientDraftId: z.string().uuid(),
+    itemIds: z.array(z.string().uuid()).min(1).max(100),
+  }),
+  z.object({
+    type: z.literal("production"),
+    branchId: z.string().uuid(),
+    clientDraftId: z.string().uuid(),
+    productionOrderId: z.string().uuid(),
   }),
 ]);
 

@@ -2,6 +2,8 @@
 -- Phase 10 safe reads and RLS. Authenticated users have no direct mutating DML path.
 
 revoke all on
+  public.offline_snapshots,
+  public.offline_snapshot_items,
   public.offline_submissions,
   public.offline_submission_items,
   public.offline_conflict_resolutions,
@@ -11,6 +13,14 @@ revoke all on
   public.pos_import_rows,
   public.pos_import_postings
 from authenticated;
+
+grant select (
+  id, snapshot_type, branch_id, client_draft_id, production_order_id, captured_at,
+  expires_at, created_by, created_at
+) on public.offline_snapshots to authenticated;
+
+grant select (id, snapshot_id, item_id, created_at)
+  on public.offline_snapshot_items to authenticated;
 
 grant select (
   id, reference, submission_type, status, branch_id, client_draft_id,
@@ -52,6 +62,8 @@ grant select (
 ) on public.pos_import_postings to authenticated;
 
 grant select, insert, update, delete on
+  public.offline_snapshots,
+  public.offline_snapshot_items,
   public.offline_submissions,
   public.offline_submission_items,
   public.offline_conflict_resolutions,
@@ -62,6 +74,8 @@ grant select, insert, update, delete on
   public.pos_import_postings
 to service_role;
 
+alter table public.offline_snapshots enable row level security;
+alter table public.offline_snapshot_items enable row level security;
 alter table public.offline_submissions enable row level security;
 alter table public.offline_submission_items enable row level security;
 alter table public.offline_conflict_resolutions enable row level security;
@@ -97,6 +111,20 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function public.has_pos_import_access(uuid, uuid) from public;
 grant execute on function public.has_pos_import_access(uuid, uuid) to authenticated, service_role;
+
+create policy offline_snapshots_select on public.offline_snapshots
+  for select to authenticated
+  using (
+    created_by = auth.uid()
+    and public.has_permission(auth.uid(), 'offline.sync')
+    and public.has_branch_access(auth.uid(), branch_id)
+  );
+
+create policy offline_snapshot_items_select on public.offline_snapshot_items
+  for select to authenticated
+  using (
+    exists (select 1 from public.offline_snapshots os where os.id = snapshot_id)
+  );
 
 create policy offline_submissions_select on public.offline_submissions
   for select to authenticated
@@ -145,4 +173,3 @@ create policy pos_import_postings_select on public.pos_import_postings
 -- Mutations are intentionally absent for authenticated. Definer RPCs in 0035 are the only write
 -- surface, while RLS remains the backstop for accidental future browser queries.
 revoke all on function public.tg_phase10_append_only() from public;
-
