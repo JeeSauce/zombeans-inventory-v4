@@ -246,10 +246,13 @@ describe("catalog RLS gating", () => {
     ).resolves.toBeDefined();
   });
 
-  it("authenticated users can mint a SKU via the definer function", async () => {
-    const r = await asUser(acting, ids.inventory, (c) =>
+  it("only catalog writers can mint a SKU via the definer function", async () => {
+    const r = await asUser(acting, ids.super, (c) =>
       c.query(`select public.next_item_sku() as sku`),
     );
     expect(r.rows[0].sku).toMatch(/^ITM-\d{6}$/);
+    await expect(
+      asUser(acting, ids.inventory, (c) => c.query(`select public.next_item_sku()`)),
+    ).rejects.toThrow(/catalog\.item\.write required/i);
   });
 });
