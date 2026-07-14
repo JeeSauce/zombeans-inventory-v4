@@ -209,6 +209,12 @@ describe("Phase 8 notification gate", () => {
 
   it("claims and finalizes Critical email delivery exactly once", async () => {
     const raised = await raise("expired_lot", `phase8:email:${crypto.randomUUID()}`);
+    await admin.query(
+      `update public.notification_deliveries
+       set created_at = '2000-01-01T00:00:00Z'
+       where notification_id=$1 and channel='email'`,
+      [raised.notification_id],
+    );
     const claimToken = crypto.randomUUID();
     const claimed = await admin.query<{
       delivery_id: string;
@@ -397,7 +403,7 @@ describe("Phase 8 calendar and popup authorization", () => {
       client.query(`select public.start_popup_event($1,$2)`, [popupId, crypto.randomUUID()]),
     );
     const before = await admin.query(
-      `select (select count(*)::int from public.stock_transactions) ledger, (select qty_on_hand from public.inventory_balances where item_id=$1 and branch_id=$2) qty`,
+      `select (select count(*)::int from public.stock_transaction_lines where item_id=$1) ledger, (select qty_on_hand from public.inventory_balances where item_id=$1 and branch_id=$2) qty`,
       [fixture.item, fixture.main],
     );
     const lines = JSON.stringify([
@@ -425,7 +431,7 @@ describe("Phase 8 calendar and popup authorization", () => {
       client.query(`select public.complete_popup_event($1,$2)`, [popupId, crypto.randomUUID()]),
     );
     const after = await admin.query(
-      `select (select count(*)::int from public.stock_transactions) ledger, (select qty_on_hand from public.inventory_balances where item_id=$1 and branch_id=$2) qty, (select status from public.popup_event_sessions where id=$3) status`,
+      `select (select count(*)::int from public.stock_transaction_lines where item_id=$1) ledger, (select qty_on_hand from public.inventory_balances where item_id=$1 and branch_id=$2) qty, (select status from public.popup_event_sessions where id=$3) status`,
       [fixture.item, fixture.main, popupId],
     );
     expect(after.rows[0]).toEqual({
