@@ -112,10 +112,21 @@ erDiagram
     audit_logs ||--o| recycle_bin_commands : evidences
     profiles ||--o{ recycle_purge_runs : starts
 
-    %% ── POS V2 (schema only) ──
-    products ||--o{ pos_item_mappings : mapped
-    pos_transaction_mappings ||--o{ pos_sync_logs : logged
-    import_jobs ||--o{ import_rows : parses
+    %% ── Offline & POS preparation ──
+    profiles ||--o{ offline_snapshots : owns
+    branches ||--o{ offline_snapshots : scopes
+    offline_snapshots ||--o{ offline_snapshot_items : freezes
+    inventory_items ||--o{ offline_snapshot_items : identifies
+    offline_snapshots ||--o| offline_submissions : authorizes
+    offline_submissions ||--o{ offline_submission_items : contains
+    offline_submissions ||--o{ offline_conflict_resolutions : reviews
+    inventory_items ||--o{ loyverse_mappings : maps_to
+    loyverse_mappings ||--o{ loyverse_mapping_commands : changes_by
+    branches ||--o{ pos_imports : stages_at
+    pos_imports ||--o{ pos_import_rows : previews
+    loyverse_mappings ||--o{ pos_import_rows : resolves
+    pos_import_rows ||--o| pos_import_postings : confirms
+    stock_transactions ||--o| pos_import_postings : posts
 ```
 
 > Full column-level definitions live in [`../DATABASE_SCHEMA.md`](../DATABASE_SCHEMA.md).

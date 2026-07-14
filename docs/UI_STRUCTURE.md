@@ -54,15 +54,29 @@ sidebar, collapsible tablet sidebar, simplified mobile nav. Never show raw UUIDs
   /popups              /popups/[id]                    event sessions
   /reports               /reports/[type]               filters + CSV/Excel/PDF/print
   /notifications
+  /offline-pos                                         device drafts, conflicts, scan, POS staging
   /admin                                               (Super Admin)
     /users   /roles   /permissions   /settings
     /audit   /recycle-bin   /backups
-    /pos                 mappings + CSV import preview (V2 prep)
 ```
 
 ## Mobile priority actions (thumb-reachable)
 
-Scan item · Start recount · Record production · Request stock · Receive transfer · Report waste.
+Scan item · Start recount · Record production · Sync device drafts · Request stock · Receive
+transfer · Report waste.
+
+## Phase 10 offline and POS surface
+
+- `/offline-pos` is permission composed: operational roles receive device-local drafts and
+  barcode lookup; `offline.review` adds conflict cards and reasoned decision dialogs; `pos.import`
+  adds Loyverse mappings, CSV upload/preview, and an explicit confirmation dialog.
+- Draft creation is online because the server must issue a scoped snapshot receipt. Editing and
+  retrying are offline-capable through IndexedDB, with stable human labels and no raw UUID display.
+- The service worker caches only static GET assets and an offline fallback. It never intercepts,
+  queues, replays, or fabricates a mutation request; the application queue owns sync state.
+- CSV preview shows per-row mapped item, converted base quantity, validation status, and totals.
+  Confirmation is unavailable for any invalid/unmapped/duplicate row and clearly identifies the
+  irreversible ledger posting boundary.
 
 ## Phase 9 report and recovery surfaces
 
@@ -90,6 +104,7 @@ Filters: date range, branch, category, item type. *Financial cards hidden from u
 
 ## Offline UX (PWA)
 
-Clear offline / queued / syncing / conflict / failed / synchronized states on recount, production,
-and stock-count drafts and barcode scans. Conflicts require review; never overwrite a newer
-confirmed count.
+Clear offline / queued / syncing / conflict / failed / synchronized states on recount and
+production drafts. Barcode scanning remains read-only. Conflicts require review; never overwrite a
+newer confirmed count. Only server snapshot receipts and stable idempotency keys cross the
+device/server trust boundary.

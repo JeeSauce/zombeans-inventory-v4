@@ -87,6 +87,25 @@ Authoritative rules that server logic and RLS must enforce. Each rule maps to te
 - When a day is closed, ordinary staff cannot edit its transactions. Super Admin may reopen with a
   reason; reopening + all later changes are audited.
 
+## Offline drafts & POS staging
+
+- Recount and production drafts may be edited in device-local IndexedDB while disconnected. The
+  queue retains one stable idempotency key through queued, syncing, failed, conflict, and
+  synchronized states.
+- A draft is syncable only with an immutable server-issued snapshot receipt for the same actor,
+  branch, operation, draft, and item/order scope. Client clocks never establish freshness.
+- A newer overlapping ledger movement makes a recount submission `review_required`; it never
+  auto-wins. Only `offline.review` may accept or reject it, with a nonblank reason and audit row.
+- Offline production records actuals through the existing production recording primitive. It does
+  not bypass the separate production confirmation/approval workflow or post inventory directly.
+- Barcode scanning is identification-only. Camera and manual entry resolve active item names, SKUs,
+  units, and barcode; they expose no cost and cannot change quantity.
+- Loyverse integration in Phase 10 is mapping and UTF-8 CSV staging only. The app stores no
+  credential, calls no Loyverse API, receives no webhook, and runs no polling/background import.
+- CSV preview validates exact headers, mapping, duplicates, positive quantities, row limits, and
+  payload hash but never changes balances, lots, or the ledger. A reasoned explicit confirmation
+  posts each valid external line exactly once as `pos_sale` or `pos_refund`.
+
 ## Approval rules (defaults; thresholds configurable global + item override)
 
 | Action                          | Approval                                   |

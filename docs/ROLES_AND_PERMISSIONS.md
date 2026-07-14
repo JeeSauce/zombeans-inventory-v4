@@ -33,6 +33,8 @@ Permissions use `resource.action` slugs. Examples:
 - `waste.record` · `waste.approve`
 - `purchase.create` · `purchase.approve` · `purchase.receive`
 - `calendar.manage` (Super Admin and Branch Manager; all operational roles can read)
+- `offline.sync` (Super Admin, Branch Manager, Production Staff, Inventory Staff)
+- `offline.review` · `pos.import` (Super Admin and Branch Manager)
 - `closure.reopen` (Super Admin) · `recyclebin.restore`
 - `users.manage` · `roles.manage` · `settings.manage` · `audit.read` · `backup.manage`
 
@@ -78,6 +80,9 @@ Permissions use `resource.action` slugs. Examples:
 | Soft-delete supported records       |     ✅      |  ✅ scoped   |  ✅ scoped  |  ✅ scoped  |
 | Restore / hold / purge recycle bin  |     ✅      |      ❌      |     ❌      |     ❌      |
 | View backup status / policy         |     ✅      |      ❌      |     ❌      |     ❌      |
+| Sync permitted offline drafts       |     ✅      |      ✅      |     ✅      |     ✅      |
+| Review offline conflicts            |     ✅      |      ✅      |     ❌      |     ❌      |
+| Manage Loyverse mappings/imports    |     ✅      |      ✅      |     ❌      |     ❌      |
 | Reopen closed day                   |     ✅      |      ❌      |     ❌      |     ❌      |
 | Recycle-bin restore                 |     ✅      |      ❌      |     ❌      |     ❌      |
 
@@ -96,6 +101,8 @@ Legend: ✅ allowed · ❌ denied · ⛔ conditional (branch-scoped or requires 
 4. **Sensitive columns**: costs & supplier prices live behind role-gated views/functions; Phase 7
    recount cost/variance-value columns are omitted from authenticated grants, and Phase 8/9
    financial analytics enforce `cost.read` inside the database. Email recipient addresses, raw
-   dependency IDs, backup locations, credentials, and provider errors are server-only.
+   dependency IDs, backup locations, credentials, and provider errors are server-only. Phase 10
+   barcode/snapshot/submission/POS reads expose operational identity and quantity only; mapping and
+   import staging are visible only to `pos.import`.
 
 Automated authorization tests (Vitest + Playwright) prove each denial — see TESTING_STRATEGY.

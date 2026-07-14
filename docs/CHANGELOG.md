@@ -5,6 +5,34 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 10 — Offline & POS Preparation — 2026-07-14
+
+Added
+
+- Server-scoped offline recount and production snapshot receipts, IndexedDB device drafts, stable
+  retry keys, visible queue states, and explicit conflict review without trusting client clocks.
+- Read-only camera/manual barcode lookup and a permission-composed `/offline-pos` workspace with
+  responsive loading, empty, warning, failure, conflict, synchronized, preview, and confirmation
+  states.
+- Loyverse item/variant/modifier mappings plus bounded UTF-8 CSV parsing, immutable staging rows,
+  per-row validation, explicit reasoned confirmation, FEFO sale posting, refund posting, and
+  external-line idempotency. No live POS credentials, API calls, polling, or webhooks were added.
+- Phase 10 schema/security/functions (migrations 0033–0035), including append-only command/posting
+  evidence, RLS, cost-free grants, and atomic reuse of existing recount/production controls.
+- Static-only PWA caching and an offline fallback; mutation requests are never intercepted by the
+  service worker.
+
+Tests
+
+- Unit coverage validates RFC-style quoted CSV parsing, exact headers and limits, plus stable
+  IndexedDB draft state transitions and retry keys.
+- Real-Postgres coverage proves scenarios 17, 18, and 24, server-owned snapshot scope, direct-DML
+  denial, barcode safety, POS permissions/RLS, exact ledger counts, and replay invariants.
+- Playwright covers operational-role visibility, manager mapping/preview/explicit confirmation,
+  the preview no-post invariant, and compact mobile reachability.
+
+Gate: Phase 10 critical scenarios 17, 18, and 24 pass.
+
 ### Phase 9 — Reports, Exports, Recycle Bin, Backups — 2026-07-14
 
 Added

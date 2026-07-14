@@ -220,13 +220,30 @@ missing_qty`, `expiration_date`, `lot_number`, `actual_unit_cost` (sensitive). A
   callers must use the audited command functions; the database owner retains explicit maintenance
   access for migrations and controlled test cleanup.
 
-## 10. POS V2 (schema only, no live sync)
+## 10. Offline & POS preparation (no live sync)
 
-- **pos_item_mappings** — `product_or_variant_id`, `loyverse_item_id`, `branch_id`.
-- **pos_transaction_mappings** — `loyverse_txn_id unique`, `status`, reversal refs.
-- **pos_sync_logs** — run metadata, errors.
-- **import_jobs** / **import_rows** — CSV import preview: detected columns, proposed mappings,
-  invalid/duplicate/unmatched rows, confirmation, result. No inventory posts before confirmation.
+- **offline_snapshots** / **offline_snapshot_items** — immutable, server-issued receipts binding
+  actor, branch, operation type, client draft, business date/order, item scope, capture time, and
+  frozen ledger watermark. A browser timestamp alone is never trusted for conflict detection.
+- **offline_submissions** / **offline_submission_items** — one idempotent sync result per actor and
+  stable key, with a human reference, payload hash, snapshot linkage, applied/review/rejected
+  state, cost-free result links, and append-only audit evidence.
+- **offline_conflict_resolutions** — append-only reasoned accept/reject commands. Review never
+  silently overwrites a newer count; accepted work calls the existing atomic recount/production
+  primitives and rejected work produces no inventory movement.
+- **loyverse_mappings** / **loyverse_mapping_commands** — active external item/variant/modifier to
+  internal inventory-item mappings, base quantity per sale, version, actor, reason, idempotency,
+  and audit history. They contain no Loyverse credential or cost field.
+- **pos_imports** / **pos_import_rows** — immutable UTF-8 CSV staging headers/rows with payload hash,
+  exact validation state, captured mapping and base quantity, human reference, branch, and
+  preview/confirmation actors. Preview has no inventory linkage or side effect.
+- **pos_import_postings** — append-only one-to-one evidence from an external line to its single
+  `pos_sale` or `pos_refund` ledger transaction. External line/type and confirmation idempotency
+  constraints prevent duplicate posting.
+- `issue_offline_snapshot`, offline submit/review functions, mapping commands, and POS preview/
+  confirm functions are `SECURITY DEFINER`, permission checked, audit linked, and closed to direct
+  authenticated DML. POS sales use FEFO eligible lots and preserve the existing negative-stock
+  Critical alert behavior; refunds increase the balance through the same atomic function.
 
 ## Integrity highlights
 
