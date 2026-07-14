@@ -106,6 +106,12 @@ erDiagram
     notifications ||--o{ notification_events : records
     notifications ||--o{ notification_deliveries : delivers
 
+    %% ── Lifecycle & Recovery ──
+    profiles ||--o{ retention_holds : places_or_releases
+    profiles ||--o{ recycle_bin_commands : performs
+    audit_logs ||--o| recycle_bin_commands : evidences
+    profiles ||--o{ recycle_purge_runs : starts
+
     %% ── POS V2 (schema only) ──
     products ||--o{ pos_item_mappings : mapped
     pos_transaction_mappings ||--o{ pos_sync_logs : logged

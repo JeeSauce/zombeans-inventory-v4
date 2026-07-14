@@ -73,6 +73,11 @@ Permissions use `resource.action` slugs. Examples:
 | Acknowledge own notification        |     ✅      |      ✅      |     ✅      |     ✅      |
 | Dashboard operational analytics     |     ✅      |      ✅      |     ✅      |     ✅      |
 | Dashboard inventory valuation       |     ✅      |      ❌      |     ❌      |     ❌      |
+| Operational reports / exports       |     ✅      |      ✅      |     ✅      |     ✅      |
+| Financial reports / exports         |     ✅      |      ❌      |     ❌      |     ❌      |
+| Soft-delete supported records       |     ✅      |  ✅ scoped   |  ✅ scoped  |  ✅ scoped  |
+| Restore / hold / purge recycle bin  |     ✅      |      ❌      |     ❌      |     ❌      |
+| View backup status / policy         |     ✅      |      ❌      |     ❌      |     ❌      |
 | Reopen closed day                   |     ✅      |      ❌      |     ❌      |     ❌      |
 | Recycle-bin restore                 |     ✅      |      ❌      |     ❌      |     ❌      |
 
@@ -89,8 +94,8 @@ Legend: ✅ allowed · ❌ denied · ⛔ conditional (branch-scoped or requires 
 3. **RLS**: policies reference a `has_permission(uid, slug)` SQL helper + branch assignment; even a
    forged direct API call is blocked.
 4. **Sensitive columns**: costs & supplier prices live behind role-gated views/functions; Phase 7
-   recount cost/variance-value columns are omitted from authenticated grants, and Phase 8 exposes
-   valuation only through a `cost.read`-checking function. Email recipient addresses and provider
-   errors are server-only.
+   recount cost/variance-value columns are omitted from authenticated grants, and Phase 8/9
+   financial analytics enforce `cost.read` inside the database. Email recipient addresses, raw
+   dependency IDs, backup locations, credentials, and provider errors are server-only.
 
 Automated authorization tests (Vitest + Playwright) prove each denial — see TESTING_STRATEGY.

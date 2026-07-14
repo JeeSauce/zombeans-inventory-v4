@@ -207,8 +207,18 @@ missing_qty`, `expiration_date`, `lot_number`, `actual_unit_cost` (sensitive). A
 
 - **application_settings** — key/value (jsonb): VAT config, thresholds (global + item overrides),
   target margin, notification recipients. Super Admin only.
-- Recycle-bin is a set of views over soft-deleted rows (deletion date, deleted_by, purge_at,
-  restore eligibility). Purge job respects ledger/audit/legal dependencies.
+- **retention_holds** — explicit legal/accounting/operational holds on supported business roots,
+  with human reference, reason, optional expiry, release actor/time, and append-only audit history.
+- **recycle_bin_commands** — append-only idempotency and audit linkage for soft-delete, restore,
+  hold/release, and purge commands.
+- **recycle_purge_runs** — idempotent purge-run metadata and safe per-record results. Purge respects
+  active holds, inbound dependencies, and ledger/accounting history.
+- **backup_runs** — non-secret metadata reported by secured backup infrastructure: human reference,
+  mechanism/status, safe provider label, encryption flag, timing, retention, size, verification,
+  and sanitized failure summary. It stores no URL, path, credentials, or database secrets.
+- Soft-delete lifecycle columns and hard deletes are trigger-guarded. Authenticated and service-role
+  callers must use the audited command functions; the database owner retains explicit maintenance
+  access for migrations and controlled test cleanup.
 
 ## 10. POS V2 (schema only, no live sync)
 

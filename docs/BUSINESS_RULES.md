@@ -124,6 +124,13 @@ missing reason, high wastage frequency.
 
 ## Retention
 
-- Soft delete kept 30 days; only Super Admin restores; auto-purge after 30 days EXCEPT records with
-  legal/accounting/ledger/audit dependencies. Audit history survives business-record purge. Audit
-  logs retained ≥ 7 years; critical ledger effectively permanent.
+- Supported business roots are soft-deleted for 30 days. The actor must hold that entity's write
+  permission; only Super Admin can restore or run purge. Every lifecycle command requires a reason,
+  is idempotent, and appends an audit record.
+- Purge skips any record with an active explicit retention hold, an inbound business dependency, or
+  ledger/accounting history. Audit history is retained independently and survives an otherwise
+  eligible business-record purge; an audit row alone does not make every record permanently
+  unpurgeable.
+- Audit logs are retained ≥ 7 years. Stock transactions, transaction lines, lots, balances, cost
+  snapshots, and other critical ledger/accounting history are never lifecycle roots and are
+  effectively permanent.

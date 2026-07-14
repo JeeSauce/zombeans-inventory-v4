@@ -5,6 +5,36 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Phase 9 — Reports, Exports, Recycle Bin, Backups — 2026-07-14
+
+Added
+
+- Four branch-scoped operational reports and two `cost.read`-protected financial reports with
+  validated date, branch, category, and item-type filters, safe empty states, summaries, and print
+  layouts.
+- Server-generated CSV, Excel-compatible SpreadsheetML, and PDF exports from the same authorized
+  database result. CSV formula cells are neutralized; financial exports enforce the database cost
+  gate and protected fields are allowlisted.
+- Phase 9 schema/security/functions (migrations 0030–0032): explicit retention holds, append-only
+  lifecycle commands, idempotent purge runs, safe backup-run metadata, lifecycle DML guards, and
+  audited soft-delete/restore/hold/purge commands for supported business roots.
+- Super-Admin recycle-bin controls showing human labels, dependency/hold status, deletion/purge
+  dates, and reasoned restore/purge actions; raw UUIDs are never displayed.
+- A truthful Super-Admin backup status/policy/restore-drill surface. Only secured service-role
+  infrastructure can record sanitized run metadata; no backup credential, path, URL, or restore
+  execution is exposed to the application.
+
+Tests
+
+- Real-Postgres coverage proves operational branch scope and cost-free payloads, direct financial
+  denial, scenarios 14–16, dependency and explicit-hold protection, lifecycle DML guards,
+  idempotent commands, RLS, and service-role-only backup recording.
+- Unit coverage validates filters and all three export formats, including CSV formula-injection
+  protection. Playwright covers report visibility/downloads, invalid-filter fallback, financial
+  gating, recycle-bin access, and honest backup status on Chromium and Pixel 7.
+
+Gate: Phase 9 critical scenarios 14, 15, and 16 pass.
+
 ### Phase 8 — Calendar, Popup Events, Notifications, Dashboard — 2026-07-14
 
 Added
