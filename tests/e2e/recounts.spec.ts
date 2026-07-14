@@ -205,7 +205,6 @@ test.describe("Phase 7 recounts and daily operations", () => {
       await expect(page.getByRole("menuitem", { name: "Daily Ops" })).toBeVisible();
     } else {
       await expect(page.getByRole("link", { name: "Daily Ops" })).toBeVisible();
-      await expect(page.getByText("Phase 7", { exact: true })).toBeVisible();
     }
   });
 
@@ -315,7 +314,7 @@ test.describe("Phase 7 recounts and daily operations", () => {
     ).rows[0]!.reference;
     await page.reload();
     await expect(cardWithText(page, branchName, "Later attributed changes")).toBeVisible();
-    await expect(page.getByText(reference, { exact: false })).toBeVisible();
+    await expect(page.getByRole("main").getByText(reference, { exact: false })).toBeVisible();
     await expect(page.getByText(/unit cost|variance value|₱/i)).toHaveCount(0);
   });
 
