@@ -145,6 +145,87 @@ revoke execute on function public.next_popup_event_reference() from authenticate
 revoke execute on function public.next_offline_submission_reference() from authenticated;
 revoke execute on function public.next_pos_import_reference() from authenticated;
 
+-- Branch scope is a database backstop, not merely a UI filter. Earlier read policies checked the
+-- operational permission but did not consistently bind stock/production rows to an assigned
+-- branch. Replace those policies with branch-aware equivalents and apply the same boundary to the
+-- limited direct production-recording updates.
+drop policy if exists balances_select on public.inventory_balances;
+create policy balances_select on public.inventory_balances
+  for select to authenticated
+  using (
+    public.has_permission(auth.uid(), 'catalog.item.read')
+    and public.has_branch_access(auth.uid(), branch_id)
+  );
+
+drop policy if exists lots_select on public.inventory_lots;
+create policy lots_select on public.inventory_lots
+  for select to authenticated
+  using (
+    public.has_permission(auth.uid(), 'catalog.item.read')
+    and public.has_branch_access(auth.uid(), branch_id)
+  );
+
+drop policy if exists stock_txn_select on public.stock_transactions;
+create policy stock_txn_select on public.stock_transactions
+  for select to authenticated
+  using (
+    public.has_permission(auth.uid(), 'catalog.item.read')
+    and (
+      public.has_branch_access(auth.uid(), source_branch_id)
+      or public.has_branch_access(auth.uid(), dest_branch_id)
+    )
+  );
+
+drop policy if exists stock_txn_lines_select on public.stock_transaction_lines;
+create policy stock_txn_lines_select on public.stock_transaction_lines
+  for select to authenticated
+  using (
+    public.has_permission(auth.uid(), 'catalog.item.read')
+    and exists (
+      select 1 from public.stock_transactions st where st.id = txn_id
+    )
+  );
+
+drop policy if exists production_orders_select on public.production_orders;
+create policy production_orders_select on public.production_orders
+  for select to authenticated
+  using (
+    public.has_branch_access(auth.uid(), branch_id)
+    and (
+      public.has_permission(auth.uid(), 'production.create')
+      or public.has_permission(auth.uid(), 'production.record')
+      or public.has_permission(auth.uid(), 'production.confirm')
+    )
+  );
+
+drop policy if exists production_orders_start_record on public.production_orders;
+create policy production_orders_start_record on public.production_orders
+  for update to authenticated
+  using (
+    public.has_branch_access(auth.uid(), branch_id)
+    and public.has_permission(auth.uid(), 'production.record')
+    and status in ('draft', 'in_progress')
+  )
+  with check (
+    public.has_branch_access(auth.uid(), branch_id)
+    and public.has_permission(auth.uid(), 'production.record')
+    and status in ('in_progress', 'awaiting_confirmation')
+  );
+
+drop policy if exists production_orders_cancel on public.production_orders;
+create policy production_orders_cancel on public.production_orders
+  for update to authenticated
+  using (
+    public.has_branch_access(auth.uid(), branch_id)
+    and public.has_permission(auth.uid(), 'production.create')
+    and status in ('draft', 'in_progress', 'awaiting_confirmation')
+  )
+  with check (
+    public.has_branch_access(auth.uid(), branch_id)
+    and public.has_permission(auth.uid(), 'production.create')
+    and status = 'cancelled'
+  );
+
 -- Collapse the costing dashboard's one-RPC-per-active-recipe fan-out into one protected call.
 -- Individual recipe failures remain isolated so one malformed legacy recipe cannot hide every
 -- other costing row from the authorized Super Admin.
