@@ -21,9 +21,26 @@ const ENTITY_PERMISSIONS: Record<RecycleEntityType, string> = {
 };
 
 function cleanError(error: unknown): string {
-  return (error instanceof Error ? error.message : "Recycle-bin command failed.")
-    .replace(/^.*?:\s*/, "")
-    .replace(/Permission denied:\s*/i, "You do not have permission: ");
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "object" && error !== null && "message" in error
+        ? String(error.message)
+        : "";
+  if (/permission denied/i.test(message)) return "You do not have permission for this command.";
+  if (/authentication required/i.test(message)) return "Your session expired. Sign in again.";
+  if (/business record not found/i.test(message)) return "The selected record no longer exists.";
+  if (/already in the recycle bin/i.test(message))
+    return "That record is already in the recycle bin.";
+  if (/not in the recycle bin/i.test(message))
+    return "That record is no longer in the recycle bin.";
+  if (/only draft or cancelled purchase orders/i.test(message)) {
+    return "Only draft or cancelled purchase orders can be recycled.";
+  }
+  if (/idempotency key already belongs/i.test(message)) {
+    return "This command token was already used for another operation. Refresh and try again.";
+  }
+  return "The recycle-bin command could not be completed safely.";
 }
 
 function revalidateLifecycle() {

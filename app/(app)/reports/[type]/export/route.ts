@@ -51,6 +51,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ typ
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Export generation failed";
-    return Response.json({ error: message }, { status: /permission/i.test(message) ? 403 : 500 });
+    const denied = /permission/i.test(message);
+    return Response.json(
+      { error: denied ? "Report permission required" : "Export generation failed" },
+      { status: denied ? 403 : 500 },
+    );
   }
 }

@@ -63,7 +63,9 @@ test("inventory staff sees operational reports, can export CSV, and cannot open 
 test("invalid report filters produce a warning and safe defaults", async ({ page }) => {
   await login(page, "manager@zombeans.dev");
   await page.goto("/reports/stock-movements?start=2026-07-15&end=2026-07-14");
-  await expect(page.getByText("Invalid filters were ignored", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Invalid filters were ignored" }).first(),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Stock movements", exact: true })).toBeVisible();
 });
 
@@ -74,11 +76,17 @@ test("verified Super Admin sees financial reports, recycle bin, and honest backu
   await page.goto("/reports");
   await expect(page.getByText("Inventory valuation", { exact: true })).toBeVisible();
   await page.goto("/reports/inventory-valuation");
-  await expect(page.getByText("Financial report", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Financial report" }).first(),
+  ).toBeVisible();
   await page.goto("/admin/recycle-bin");
   await expect(page.getByRole("heading", { name: "Recycle bin", exact: true })).toBeVisible();
-  await expect(page.getByText("Retention is dependency-aware", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Retention is dependency-aware" }).first(),
+  ).toBeVisible();
   await page.goto("/admin/backups");
   await expect(page.getByRole("heading", { name: "Backups", exact: true })).toBeVisible();
-  await expect(page.getByText("No backup runs recorded", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "No backup runs recorded" }).first(),
+  ).toBeVisible();
 });

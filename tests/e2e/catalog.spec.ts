@@ -51,9 +51,9 @@ test("desktop sidebar hides admin sections from inventory staff", async ({ page 
   test.skip(testInfo.project.name !== "chromium", "sidebar is desktop-only; mobile uses a menu");
   await login(page, "inventory@zombeans.dev");
 
-  await expect(page.getByRole("link", { name: "Products" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Inventory items" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Branches" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Settings" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Users" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Products", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Inventory items", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Branches", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Settings", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Users", exact: true })).toHaveCount(0);
 });
