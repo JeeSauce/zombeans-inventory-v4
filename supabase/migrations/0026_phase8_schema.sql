@@ -392,18 +392,29 @@ comment on column public.notification_deliveries.recipient_address is
 comment on table public.popup_event_movements is
   'Links popup summaries to existing posted stock or received-transfer effects; never posts stock.';
 
+-- Current-state tables without optimistic-concurrency versions still need timestamps refreshed.
+create or replace function public.tg_set_updated_at_only()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
 create trigger set_updated_at before update on public.notifications
   for each row execute function public.tg_set_updated_at();
 create trigger set_updated_at before update on public.notification_receipts
-  for each row execute function public.tg_set_updated_at();
+  for each row execute function public.tg_set_updated_at_only();
 create trigger set_updated_at before update on public.notification_deliveries
-  for each row execute function public.tg_set_updated_at();
+  for each row execute function public.tg_set_updated_at_only();
 create trigger set_updated_at before update on public.calendar_events
   for each row execute function public.tg_set_updated_at();
 create trigger set_updated_at before update on public.popup_event_sessions
   for each row execute function public.tg_set_updated_at();
 create trigger set_updated_at before update on public.popup_event_count_lines
-  for each row execute function public.tg_set_updated_at();
+  for each row execute function public.tg_set_updated_at_only();
 
 create or replace function public.tg_phase8_append_only()
 returns trigger language plpgsql set search_path = public as $$

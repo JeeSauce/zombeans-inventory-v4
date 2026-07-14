@@ -423,7 +423,7 @@ begin
       'delivery:' || c.id::text || ':claim:' || p_claim_token::text
     from claimed c
     on conflict (idempotency_key) do nothing
-    returning notification_id
+    returning public.notification_events.notification_id
   )
   select c.id, c.notification_id, c.recipient_address, n.title, n.message
   from claimed c
@@ -458,7 +458,10 @@ begin
   end if;
 
   update public.notification_deliveries set
-    status = case when p_succeeded then 'delivered' else 'failed' end,
+    status = case
+      when p_succeeded then 'delivered'::public.notification_delivery_status
+      else 'failed'::public.notification_delivery_status
+    end,
     delivered_at = case when p_succeeded then now() else null end,
     failed_at = case when p_succeeded then null else now() end,
     provider_message_id = nullif(btrim(p_provider_message_id), ''),
@@ -469,7 +472,10 @@ begin
     notification_id, event_type, metadata, idempotency_key
   ) values (
     v_delivery.notification_id,
-    case when p_succeeded then 'delivery_delivered' else 'delivery_failed' end,
+    case
+      when p_succeeded then 'delivery_delivered'::public.notification_event_type
+      else 'delivery_failed'::public.notification_event_type
+    end,
     jsonb_build_object('channel', 'email', 'delivery_id', p_delivery_id),
     'delivery:' || p_delivery_id::text || ':attempt:' || v_delivery.attempt_count::text ||
       case when p_succeeded then ':delivered' else ':failed' end
