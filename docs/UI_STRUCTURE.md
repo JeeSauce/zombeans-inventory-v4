@@ -64,6 +64,16 @@ sidebar, collapsible tablet sidebar, simplified mobile nav. Never show raw UUIDs
 
 Scan item · Start recount · Record production · Request stock · Receive transfer · Report waste.
 
+## Phase 9 report and recovery surfaces
+
+- `/reports` shows all four operational reports to authenticated roles and adds the two financial
+  reports only for `cost.read`. Detail pages use bounded date, accessible-branch, category, and
+  item-type filters; exports and print share the visible authorized result.
+- `/admin/recycle-bin` is Super-Admin recovery tooling. It shows human labels, dates, dependency/
+  hold state, reasoned restore, and confirmed eligible purge—never raw UUIDs.
+- `/admin/backups` is a status, policy, history, and restore-drill guide. Empty metadata is an
+  explicit warning, not a false success state; backup and restore execution stay external.
+
 ## Dashboard cards (role-filtered)
 
 Total inventory value* · Low-stock · Out-of-stock · Today's production · Pending stock requests ·

@@ -82,7 +82,9 @@ test("inventory staff sees the calendar as read-only on desktop and mobile", asy
   await login(page, "inventory@zombeans.dev");
   await page.goto("/calendar");
   await expect(page.getByRole("heading", { name: "Calendar", exact: true })).toBeVisible();
-  await expect(page.getByText("Read-only calendar", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Read-only calendar" }).first(),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Create calendar event" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Month" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Week" })).toBeVisible();

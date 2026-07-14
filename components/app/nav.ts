@@ -18,6 +18,9 @@ import {
   CalendarDays,
   Bell,
   MapPinned,
+  FileChartColumn,
+  Trash2,
+  DatabaseBackup,
   type LucideIcon,
 } from "lucide-react";
 
@@ -99,10 +102,23 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Calendar", href: "/calendar", icon: CalendarDays },
   { label: "Popup events", href: "/popups", icon: MapPinned },
   { label: "Notifications", href: "/notifications", icon: Bell },
+  { label: "Reports", href: "/reports", icon: FileChartColumn },
   { label: "Users", href: "/admin/users", icon: Users, permission: "users.manage" },
   { label: "Branches", href: "/admin/branches", icon: Store, permission: "settings.manage" },
   { label: "Settings", href: "/admin/settings", icon: Settings, permission: "settings.manage" },
   { label: "Audit log", href: "/admin/audit", icon: ScrollText, permission: "audit.read" },
+  {
+    label: "Recycle bin",
+    href: "/admin/recycle-bin",
+    icon: Trash2,
+    permission: "recyclebin.restore",
+  },
+  {
+    label: "Backups",
+    href: "/admin/backups",
+    icon: DatabaseBackup,
+    permission: "backup.manage",
+  },
 ];
 
 export function visibleNav(permissions: string[]): NavItem[] {

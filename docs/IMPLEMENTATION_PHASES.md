@@ -64,12 +64,12 @@ Super Admin reopening.
 Operational calendar; popup event sessions; in-app + email notifications; dashboard analytics.
 **Gate:** notification dedup/severity + dashboard role-gating tests pass.
 
-## Phase 9 — Reports, Exports, Recycle Bin, Backups ← next
+## Phase 9 — Reports, Exports, Recycle Bin, Backups
 
 Reports; CSV/Excel/PDF/print exports; soft delete; auto-purge; backup jobs; restore docs.
-**Gate:** critical tests 14, 15, 16 pass.
+**Gate:** critical tests 14, 15, 16 pass. **Complete 2026-07-14.**
 
-## Phase 10 — Offline & POS Preparation
+## Phase 10 — Offline & POS Preparation ← next
 
 Offline drafts; sync queue; conflict review; barcode scanning; Loyverse mapping tables; CSV
 importer with preview; POS interfaces without live sync.

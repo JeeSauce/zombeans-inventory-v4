@@ -20,6 +20,31 @@ stateDiagram-v2
     end note
 ```
 
+## Recycle-bin lifecycle
+
+```mermaid
+flowchart TD
+    A["Authorized reasoned soft delete"] --> B["Set deleted/purge dates + append audit and command"]
+    B --> C["30-day recycle-bin window"]
+    C -->|Super Admin restores| D["Clear lifecycle dates + append audit and command"]
+    C -->|Purge date reached| E{"Hold, inbound dependency, or ledger/accounting history?"}
+    E -->|yes| F["Skip with safe blocked reason; preserve record"]
+    E -->|no| G["Hard delete through guarded purge command"]
+    G --> H["Keep independent audit evidence and purge result"]
+```
+
+## Backup status and recovery boundary
+
+```mermaid
+flowchart LR
+    A["Secured external scheduler"] --> B["Encrypted backup + verification"]
+    B --> C["Service-role metadata recorder"]
+    C --> D["Super-Admin status/history UI"]
+    B --> E["Human-approved scratch restore drill"]
+    E --> F["Smoke tests + RTO evidence"]
+    D -. "never executes restore" .-> E
+```
+
 ## Notification condition and delivery
 
 ```mermaid

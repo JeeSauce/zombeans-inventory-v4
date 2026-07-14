@@ -59,6 +59,18 @@ CI greps the client bundle (`.next/static`) for the service-role key pattern and
 - **Calendar/popup safety:** permission tests cover manager mutation versus staff read-only access;
   popup completion must validate a summary without changing balances or the append-only ledger.
 
+## Phase 9 gate
+
+- **Reports and exports:** all operational roles receive only accessible-branch, cost-free report
+  data; direct financial RPC calls require `cost.read`. CSV formula injection and protected-field
+  leakage are rejected, and CSV/Excel/PDF output is derived from the same validated report result.
+- **Lifecycle scenarios 14–16:** real Postgres proves restore before purge, eligible purge, and
+  dependency/hold-blocked purge. Direct lifecycle updates and hard deletes are rejected, while
+  idempotent command replays do not duplicate history.
+- **Backup metadata:** only `service_role` records sanitized backup-run metadata; only
+  `backup.manage` can read status/history. Browser coverage verifies truthful empty status when no
+  external infrastructure has reported a run.
+
 ## Coverage focus
 
 Highest rigor on costing math (weighted-average, multi-level recipes, actual-yield cost), FEFO lot
