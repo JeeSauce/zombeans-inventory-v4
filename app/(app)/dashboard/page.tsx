@@ -73,10 +73,19 @@ export default async function DashboardPage({
     financials = parsed.success ? parsed.data : null;
   }
 
+  const canOpenStock = [
+    "stock.in",
+    "stock.out",
+    "stock.transfer.prepare",
+    "stock.transfer.approve",
+    "stock.transfer.receive",
+  ].some((permission) => can(permission, auth.permissions));
+
   return (
     <DashboardClient
       firstName={auth.fullName.split(" ")[0] || "there"}
       roleLabel={auth.roleLabel}
+      canOpenStock={canOpenStock}
       data={operational.success ? operational.data : null}
       financials={financials}
       filters={filters}

@@ -50,6 +50,7 @@ function KpiCard({
 export function DashboardClient({
   firstName,
   roleLabel,
+  canOpenStock,
   data,
   financials,
   filters,
@@ -59,6 +60,7 @@ export function DashboardClient({
 }: {
   firstName: string;
   roleLabel: string;
+  canOpenStock: boolean;
   data: DashboardData | null;
   financials: DashboardFinancials | null;
   filters: DashboardFilters;
@@ -187,10 +189,15 @@ export function DashboardClient({
           <AlertDescription>
             {data.summary.negative_inventory_count} item balance
             {data.summary.negative_inventory_count === 1 ? "" : "s"} require immediate
-            investigation.{" "}
-            <Link className="underline" href="/stock">
-              Open stock
-            </Link>
+            investigation.
+            {canOpenStock && (
+              <>
+                {" "}
+                <Link className="underline" href="/stock">
+                  Open stock
+                </Link>
+              </>
+            )}
           </AlertDescription>
         </Alert>
       ) : null}
