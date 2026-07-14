@@ -77,7 +77,7 @@ function FormFields({ event, branches }: { event?: CalendarEventRow; branches: B
           defaultValue={event?.eventType ?? "operation"}
         >
           {CALENDAR_EVENT_TYPES.filter(
-            (type) => !event || type === event.eventType || type !== "popup",
+            (type) => type !== "popup" || event?.eventType === "popup",
           ).map((type) => (
             <option key={type} value={type}>
               {type.replaceAll("_", " ")}

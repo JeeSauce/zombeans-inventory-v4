@@ -6,7 +6,8 @@ export async function NotificationBell() {
   const supabase = await createClient();
   const { count } = await supabase
     .from("notification_receipts")
-    .select("id", { count: "exact", head: true })
+    .select("id, notifications!inner(status)", { count: "exact", head: true })
+    .eq("notifications.status", "active")
     .is("read_at", null);
   const unread = count ?? 0;
   return (
