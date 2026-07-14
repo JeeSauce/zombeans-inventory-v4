@@ -64,7 +64,6 @@ export default async function CostingPage() {
   const recipes = (recipesData as unknown as RawRecipe[] | null) ?? [];
   const activeVersions = (versionsData as { id: string; recipe_id: string }[] | null) ?? [];
   const prices = (pricesData as unknown as RawPrice[] | null) ?? [];
-  const versionByRecipe = new Map(activeVersions.map((version) => [version.recipe_id, version.id]));
   const variantLabels = new Map(
     ((variantsData as { id: string; name: string }[] | null) ?? []).map((variant) => [
       variant.id,

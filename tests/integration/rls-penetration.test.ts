@@ -14,7 +14,6 @@ const SUPER_MANAGER_PRODUCTION: AppRole[] = ["super", "manager", "production"];
 const SUPER_MANAGER_INVENTORY: AppRole[] = ["super", "manager", "inventory"];
 const SUPER_INVENTORY: AppRole[] = ["super", "inventory"];
 const SUPER_PRODUCTION: AppRole[] = ["super", "production"];
-const NONE: AppRole[] = [];
 
 const BUSINESS_TABLES = [
   "application_settings",
