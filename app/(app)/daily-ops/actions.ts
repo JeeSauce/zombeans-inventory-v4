@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { writeAudit } from "@/lib/audit";
+import { refreshOperationalNotifications } from "@/lib/notifications/refresh";
 import { requirePermission } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -25,6 +26,15 @@ function revalidateDailyOps() {
   revalidatePath("/daily-ops");
   revalidatePath("/stock");
   revalidatePath("/dashboard");
+  revalidatePath("/notifications");
+}
+
+async function refreshNotificationsAfterRecount(): Promise<void> {
+  try {
+    await refreshOperationalNotifications();
+  } catch (error) {
+    console.error("Phase 8 notification refresh failed after recount command", error);
+  }
 }
 
 export async function openRecountAction(
@@ -74,6 +84,7 @@ export async function openRecountAction(
         },
       });
     }
+    await refreshNotificationsAfterRecount();
     revalidateDailyOps();
     return {
       info: result.already_exists
@@ -143,6 +154,7 @@ export async function submitRecountAction(
         },
       });
     }
+    await refreshNotificationsAfterRecount();
     revalidateDailyOps();
     return {
       info:
@@ -213,6 +225,7 @@ export async function postVarianceAdjustmentAction(
         reason: parsed.data.reason,
       });
     }
+    await refreshNotificationsAfterRecount();
     revalidateDailyOps();
     return {
       info: result.already_exists

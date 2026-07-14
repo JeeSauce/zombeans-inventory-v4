@@ -326,6 +326,22 @@ describe("Phase 5 production authorization", () => {
     expect(production.rows[0]!.n).toBe(1);
     expect(manager.rows[0]!.n).toBe(1);
     expect(inventory.rows[0]!.n).toBe(0);
+
+    const safeFailureMetadata = await runAsUserAndCommit(users.production, (client) =>
+      client.query<{ failed_at: string | null; failure_reason: string | null }>(
+        `select failed_at, failure_reason from public.production_orders where id = $1`,
+        [scenario.orderId],
+      ),
+    );
+    expect(safeFailureMetadata.rows[0]).toEqual({ failed_at: null, failure_reason: null });
+    await expect(
+      runAsUserAndCommit(users.production, (client) =>
+        client.query(`select failed_by from public.production_orders where id = $1`, [
+          scenario.orderId,
+        ]),
+      ),
+    ).rejects.toThrow(/permission denied for table production_orders/i);
+
     await expect(
       runAsUserAndCommit(users.production, (client) =>
         client.query(`select public.post_production_completion($1)`, [scenario.orderId]),

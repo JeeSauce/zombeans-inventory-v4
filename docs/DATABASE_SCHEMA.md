@@ -178,13 +178,30 @@ missing_qty`, `expiration_date`, `lot_number`, `actual_unit_cost` (sensitive). A
 
 ## 8. Ops & UX
 
-- **calendar_events** — `title`, `type`, `branch_id?`, `starts_at`, `ends_at`, `status`,
-  related-record refs (production/transfer/po/recount/popup).
-- **popup_event_sessions** — `calendar_event_id`, `name`, `client`, `venue`, planned products,
-  reserved stock, transfer/return refs, recount ref, event summary.
-- **notifications** — `recipient_id`, `type`, `severity`, `title`, `body`, `related_ref`,
-  `read_at`, `email_status`, `retry_count`, `dedupe_key`.
-- **notification_preferences** — `profile_id`, `type`, `channel_inapp bool`, `channel_email bool`.
+- **notifications** — human reference, enforced source/severity, active/resolved current state,
+  entity linkage, role/branch/user target, stable dedup key, Critical-only email flag, raise count,
+  and first/last/resolution timestamps. A partial unique index permits one active row per dedup key.
+- **notification_receipts** — one per notification/user with current read and acknowledged times.
+  Users can change only their own receipt through the idempotent receipt RPC.
+- **notification_events** — append-only raises, re-raises, resolution, read/ack, and delivery
+  transitions with actor, metadata, timestamp, and stable idempotency key.
+- **notification_deliveries** — server-owned in-app/email delivery state, recipient, unique delivery
+  key, claim token, bounded attempt count, provider result, and failure detail. Recipient addresses
+  are omitted from all authenticated grants.
+- **calendar_events** — human reference, title/description/location, operation/popup/production/
+  delivery/recount/other type, optional branch, UTC start/end, lifecycle, audit actors, and version.
+- **calendar_event_commands** — append-only idempotent create/update/cancel command record with
+  resulting event/version and cost-free audit link.
+- **popup_event_sessions** — one-to-one calendar event, permanent popup branch, return-to Main
+  branch, lifecycle, human reference, notes, lifecycle actors/timestamps, and optimistic version.
+- **popup_event_count_lines** — per-session/item frozen transferred-in, returned, ending,
+  consumed, waste, loss, and gain quantities with database-enforced reconciliation equations.
+- **popup_event_movements** — append-only links from an engagement summary to existing received
+  transfers or posted stock transactions; this table never posts inventory itself.
+- **popup_event_commands** — append-only, replay-safe lifecycle/count/link commands with result
+  status/version and cost-free audit linkage.
+- **production_orders Phase 8 failure fields** — failure actor/time/reason/idempotency metadata for
+  the explicit failed state and its Critical producer.
 
 ## 9. Lifecycle & Settings
 

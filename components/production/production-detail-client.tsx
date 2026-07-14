@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useTransition } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { CheckCircle2, Play, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   cancelProductionAction,
   confirmProductionAction,
+  markProductionFailedAction,
   recordProductionActualsAction,
   startProductionAction,
   type ProductionActionState,
@@ -46,6 +47,8 @@ export interface ProductionDetail {
   startedAt: string | null;
   submittedAt: string | null;
   confirmedAt: string | null;
+  failedAt: string | null;
+  failureReason: string | null;
 }
 
 export interface ProductionInputRow {
@@ -102,6 +105,7 @@ export function ProductionDetailClient({
   canRecord,
   canConfirm,
   canCancel,
+  canFail,
   defaultProductionDate,
   defaultExpirationDate,
 }: {
@@ -111,6 +115,7 @@ export function ProductionDetailClient({
   canRecord: boolean;
   canConfirm: boolean;
   canCancel: boolean;
+  canFail: boolean;
   defaultProductionDate: string;
   defaultExpirationDate: string;
 }) {
@@ -186,6 +191,18 @@ export function ProductionDetailClient({
             waste, output lot, balances, and ledger entries posted atomically.
           </AlertDescription>
         </Alert>
+      )}
+      {order.failedAt && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            Failed {formatHumanDateTime(order.failedAt)}. {order.failureReason} A Critical in-app
+            and email alert remains active until the condition is resolved.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {canFail && !["completed", "cancelled"].includes(order.status) && (
+        <ProductionFailureForm orderId={order.id} />
       )}
 
       <form action={formAction} className="space-y-6">
@@ -341,5 +358,39 @@ export function ProductionDetailClient({
         )}
       </form>
     </div>
+  );
+}
+
+function ProductionFailureForm({ orderId }: { orderId: string }) {
+  const [token, setToken] = useState(() => crypto.randomUUID());
+  const [state, action] = useActionState<ProductionActionState, FormData>(
+    markProductionFailedAction.bind(null, orderId),
+    {},
+  );
+  useEffect(() => {
+    if (state.error) toast.error(state.error);
+    if (state.info) {
+      toast.success(state.info);
+      setToken(crypto.randomUUID());
+    }
+  }, [state.error, state.info]);
+  return (
+    <Card className="border-destructive/40">
+      <CardHeader>
+        <CardTitle>Production failure</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <form action={action} className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="idempotencyKey" value={token} />
+          <div className="min-w-64 flex-1 space-y-2">
+            <Label htmlFor="failure-reason">Failure reason</Label>
+            <Input id="failure-reason" name="reason" minLength={3} maxLength={1000} required />
+          </div>
+          <Button type="submit" variant="destructive">
+            <XCircle className="size-4" /> Record failed production
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }

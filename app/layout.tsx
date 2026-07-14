@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Anton, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Poppins } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
@@ -9,11 +9,10 @@ const inter = Inter({
   display: "swap",
 });
 
-// Condensed heavy display face — the Zombeans headline voice. Used with restraint.
-const anton = Anton({
+const poppins = Poppins({
   subsets: ["latin"],
-  weight: "400",
-  variable: "--font-anton",
+  weight: "600",
+  variable: "--font-poppins",
   display: "swap",
 });
 
@@ -39,7 +38,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${anton.variable} ${jetbrainsMono.variable} antialiased`}>
+      <body
+        className={`${inter.variable} ${poppins.variable} ${jetbrainsMono.variable} antialiased`}
+      >
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

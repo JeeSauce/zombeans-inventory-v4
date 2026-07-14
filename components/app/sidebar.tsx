@@ -55,8 +55,8 @@ export function Sidebar({ permissions }: { permissions: string[] }) {
         ))}
       </nav>
       <div className="text-muted-foreground border-t p-4 text-xs">
-        <span className="eyebrow text-[0.65rem]">Phase 7</span>
-        <p className="mt-1">More modules arrive in later phases.</p>
+        <span className="eyebrow text-[0.65rem]">Phase 8</span>
+        <p className="mt-1">Calendar, alerts, popup operations, and analytics.</p>
       </div>
     </aside>
   );

@@ -26,8 +26,7 @@ export function getEmailTransport(): EmailTransport {
       return consoleTransport;
     case "resend":
     case "smtp":
-      // TODO(phase-8): wire real providers when notification delivery lands. Fail loudly for now
-      // so misconfiguration in a non-dev environment is obvious.
+      // Fail loudly until deployment selects and credentials a production adapter.
       throw new Error(`Email provider "${EMAIL_PROVIDER}" is not yet implemented`);
     default:
       return consoleTransport;

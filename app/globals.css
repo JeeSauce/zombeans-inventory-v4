@@ -6,7 +6,7 @@
   Zombeans design tokens — derived directly from the live site (zombeans.xyz).
   Dark forest-green is the brand default; a warm cream light mode is provided for
   data-heavy daytime use. Amber = primary action, sage = structure, zombie-green =
-  rare positive/critical accent + logo glow. Type: Anton (display), Inter (body),
+  rare positive/critical accent + logo glow. Type: Poppins SemiBold (display), Inter (body),
   JetBrains Mono (all data/numbers). Operational clarity first.
 */
 
@@ -89,7 +89,7 @@
   --color-brand-glow: var(--brand-glow);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-anton), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -107,7 +107,7 @@
     color: var(--foreground);
     font-family: var(--font-sans);
   }
-  /* Eyebrow / display helper — Anton, condensed, tracked-out uppercase. Used with restraint. */
+  /* Eyebrow / display helper — Poppins SemiBold, tracked-out uppercase. */
   .font-display {
     font-family: var(--font-display);
     letter-spacing: 0.01em;

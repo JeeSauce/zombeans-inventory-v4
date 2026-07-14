@@ -59,12 +59,12 @@ Start-of-day recount; optional end-of-day; cycle counts; variances; adjustments;
 Super Admin reopening.
 **Gate:** critical tests 11, 12, 13 pass.
 
-## Phase 8 — Calendar, Popup Events, Notifications, Dashboard ← next
+## Phase 8 — Calendar, Popup Events, Notifications, Dashboard
 
 Operational calendar; popup event sessions; in-app + email notifications; dashboard analytics.
 **Gate:** notification dedup/severity + dashboard role-gating tests pass.
 
-## Phase 9 — Reports, Exports, Recycle Bin, Backups
+## Phase 9 — Reports, Exports, Recycle Bin, Backups ← next
 
 Reports; CSV/Excel/PDF/print exports; soft delete; auto-purge; backup jobs; restore docs.
 **Gate:** critical tests 14, 15, 16 pass.

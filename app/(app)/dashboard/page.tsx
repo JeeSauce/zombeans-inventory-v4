@@ -1,119 +1,105 @@
-import Link from "next/link";
-import { getAuthContext, can } from "@/lib/auth/context";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { formatHumanDate } from "@/lib/format";
-import { ShieldCheck, KeyRound, Users, ScrollText, Lock } from "lucide-react";
+import { formatInTimeZone } from "date-fns-tz";
+import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { can, getAuthContext } from "@/lib/auth/context";
+import { dashboardDataSchema, dashboardFinancialsSchema } from "@/lib/dashboard/data";
+import { refreshOperationalNotifications } from "@/lib/notifications/refresh";
+import { createClient } from "@/lib/supabase/server";
+import { dashboardFilterSchema } from "@/lib/validation/phase8";
 
-export default async function DashboardPage() {
-  const ctx = await getAuthContext();
-  const firstName = ctx.fullName.split(" ")[0] || "there";
-
-  return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <div>
-        <p className="eyebrow text-xs">{formatHumanDate(new Date())}</p>
-        <h1 className="font-display mt-1 text-3xl">Welcome back, {firstName}</h1>
-        <p className="text-muted-foreground mt-1">
-          Operational modules roll out phase by phase. Access below reflects your role.
-        </p>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">Your role</CardTitle>
-            <ShieldCheck className="text-accent size-4" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-semibold">{ctx.roleLabel}</p>
-            {ctx.isSuperAdmin && (
-              <Badge variant="secondary" className="mt-2">
-                Step-up verified
-              </Badge>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-muted-foreground text-sm font-medium">Permissions</CardTitle>
-            <KeyRound className="text-accent size-4" />
-          </CardHeader>
-          <CardContent>
-            <p className="font-data text-3xl">{ctx.permissions.length}</p>
-            <p className="text-muted-foreground text-xs">granted capabilities</p>
-          </CardContent>
-        </Card>
-
-        {/* Sensitive financial card — visible only with cost.read (Super Admin). */}
-        {can("cost.read", ctx.permissions) ? (
-          <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-muted-foreground text-sm font-medium">
-                Financials
-              </CardTitle>
-              <Lock className="text-primary size-4" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm">
-                Cost, margin, and supplier-price data will surface here once catalog and costing
-                land (Phases 2–4).
-              </p>
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
-
-      {(can("users.manage", ctx.permissions) || can("audit.read", ctx.permissions)) && (
-        <div className="space-y-3">
-          <h2 className="eyebrow text-xs">Administration</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {can("users.manage", ctx.permissions) && (
-              <QuickLink
-                href="/admin/users"
-                icon={<Users className="size-5" />}
-                title="Users"
-                desc="Create accounts, assign roles, enable or disable staff."
-              />
-            )}
-            {can("audit.read", ctx.permissions) && (
-              <QuickLink
-                href="/admin/audit"
-                icon={<ScrollText className="size-5" />}
-                title="Audit log"
-                desc="Review sign-ins, verification attempts, and changes."
-              />
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function QuickLink({
-  href,
-  icon,
-  title,
-  desc,
+export default async function DashboardPage({
+  searchParams,
 }: {
-  href: string;
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const auth = await getAuthContext();
+  const params = await searchParams;
+  const today = formatInTimeZone(new Date(), "Asia/Manila", "yyyy-MM-dd");
+  const start = new Date();
+  start.setDate(start.getDate() - 6);
+  const defaultStart = formatInTimeZone(start, "Asia/Manila", "yyyy-MM-dd");
+  const parsedFilters = dashboardFilterSchema.safeParse({
+    startDate: typeof params.start === "string" ? params.start : defaultStart,
+    endDate: typeof params.end === "string" ? params.end : today,
+    branchId: typeof params.branch === "string" ? params.branch : null,
+    categoryId: typeof params.category === "string" ? params.category : null,
+    itemType: typeof params.itemType === "string" ? params.itemType : null,
+  });
+  const filters = parsedFilters.success
+    ? parsedFilters.data
+    : { startDate: defaultStart, endDate: today, branchId: null, categoryId: null, itemType: null };
+
+  let refreshError = false;
+  try {
+    await refreshOperationalNotifications();
+  } catch (error) {
+    refreshError = true;
+    console.error("Dashboard notification refresh failed", error);
+  }
+
+  const supabase = await createClient();
+  const [operationalResult, branchesResult, categoriesResult] = await Promise.all([
+    supabase.rpc("get_dashboard_operational", {
+      p_start_date: filters.startDate,
+      p_end_date: filters.endDate,
+      p_branch_id: filters.branchId ?? null,
+      p_category_id: filters.categoryId ?? null,
+      p_item_type: filters.itemType ?? null,
+    }),
+    supabase
+      .from("branches")
+      .select("id, name")
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("name"),
+    supabase
+      .from("categories")
+      .select("id, name, item_type")
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("name"),
+  ]);
+  const operational = dashboardDataSchema.safeParse(operationalResult.data);
+
+  let financials = null;
+  let financialError = false;
+  if (can("cost.read", auth.permissions)) {
+    const result = await supabase.rpc("get_dashboard_financials", {
+      p_branch_id: filters.branchId ?? null,
+      p_category_id: filters.categoryId ?? null,
+      p_item_type: filters.itemType ?? null,
+    });
+    const parsed = dashboardFinancialsSchema.safeParse(result.data);
+    financialError = Boolean(result.error || !parsed.success);
+    financials = parsed.success ? parsed.data : null;
+  }
+
+  const canOpenStock = [
+    "stock.in",
+    "stock.out",
+    "stock.transfer.prepare",
+    "stock.transfer.approve",
+    "stock.transfer.receive",
+  ].some((permission) => can(permission, auth.permissions));
+
   return (
-    <Link href={href} className="group">
-      <Card className="group-hover:border-primary/60 transition-colors">
-        <CardContent className="flex items-start gap-4 pt-6">
-          <span className="bg-secondary/60 text-accent-foreground rounded-lg p-2">{icon}</span>
-          <div>
-            <p className="font-medium">{title}</p>
-            <p className="text-muted-foreground text-sm">{desc}</p>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+    <DashboardClient
+      firstName={auth.fullName.split(" ")[0] || "there"}
+      roleLabel={auth.roleLabel}
+      canOpenStock={canOpenStock}
+      data={operational.success ? operational.data : null}
+      financials={financials}
+      filters={filters}
+      branches={branchesResult.data ?? []}
+      categories={categoriesResult.data ?? []}
+      loadError={Boolean(
+        !parsedFilters.success ||
+        refreshError ||
+        operationalResult.error ||
+        !operational.success ||
+        branchesResult.error ||
+        categoriesResult.error ||
+        financialError,
+      )}
+    />
   );
 }
