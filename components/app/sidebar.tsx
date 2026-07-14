@@ -55,8 +55,8 @@ export function Sidebar({ permissions }: { permissions: string[] }) {
         ))}
       </nav>
       <div className="text-muted-foreground border-t p-4 text-xs">
-        <span className="eyebrow text-[0.65rem]">Phase 9</span>
-        <p className="mt-1">Reports, protected exports, retention, and recovery controls.</p>
+        <span className="eyebrow text-[0.65rem]">Phase 10</span>
+        <p className="mt-1">Offline drafts, server-owned conflicts, and staged POS imports.</p>
       </div>
     </aside>
   );

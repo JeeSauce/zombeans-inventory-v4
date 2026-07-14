@@ -4,6 +4,7 @@ import { ThemeToggle } from "@/components/app/theme-toggle";
 import { UserMenu } from "@/components/app/user-menu";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorkerRegister } from "@/components/app/service-worker-register";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAuthContext();
@@ -22,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <main className="flex-1 p-4 md:p-8">{children}</main>
       </div>
       <Toaster />
+      <ServiceWorkerRegister />
     </div>
   );
 }
