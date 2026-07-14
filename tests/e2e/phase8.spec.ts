@@ -63,15 +63,19 @@ test("dashboard cost cards are role-gated while operational cards remain visible
   page,
 }) => {
   await login(page, "inventory@zombeans.dev");
-  await expect(page.getByText("Low stock", { exact: true })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("Total inventory value", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("main").getByText("Low stock", { exact: true })).toBeVisible({
+    timeout: 15_000,
+  });
+  await expect(
+    page.getByRole("main").getByText("Total inventory value", { exact: true }),
+  ).toHaveCount(0);
 
   await page.context().clearCookies();
   await completeLocalSuperAdminStepUp(page);
   await page.goto("/dashboard");
-  await expect(page.getByText("Total inventory value", { exact: true })).toBeVisible({
-    timeout: 15_000,
-  });
+  await expect(
+    page.getByRole("main").getByText("Total inventory value", { exact: true }),
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test("inventory staff sees the calendar as read-only on desktop and mobile", async ({ page }) => {
