@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Factory,
   PackageX,
+  Scale,
   TrendingDown,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -237,6 +238,12 @@ export function DashboardClient({
               hint="In the selected range"
               icon={<Factory className="size-4" />}
               critical={data.summary.failed_production_count > 0}
+            />
+            <KpiCard
+              title="Recount variances"
+              value={data.summary.recount_variance_count}
+              hint="Submitted or adjusted in range"
+              icon={<Scale className="size-4" />}
             />
             <KpiCard
               title="Upcoming events"
