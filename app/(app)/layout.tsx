@@ -2,6 +2,7 @@ import { getAuthContext } from "@/lib/auth/context";
 import { Sidebar, MobileNav } from "@/components/app/sidebar";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { UserMenu } from "@/components/app/user-menu";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Toaster } from "@/components/ui/sonner";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -14,6 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="bg-card flex h-16 items-center justify-between gap-2 border-b px-4 md:px-6">
           <MobileNav permissions={ctx.permissions} />
           <div className="flex-1" />
+          <NotificationBell />
           <ThemeToggle />
           <UserMenu fullName={ctx.fullName} email={ctx.email} roleLabel={ctx.roleLabel} />
         </header>

@@ -22,6 +22,8 @@ type RawOrder = {
   started_at: string | null;
   submitted_at: string | null;
   confirmed_at: string | null;
+  failed_at: string | null;
+  failure_reason: string | null;
   template: { name: string; default_expiry_days: number | null } | null;
   recipe_version: {
     version_number: number;
@@ -52,6 +54,7 @@ export default async function ProductionDetailPage({
   const canRecord = can("production.record", ctx.permissions);
   const canConfirm = can("production.confirm", ctx.permissions);
   const canCancel = can("production.create", ctx.permissions);
+  const canFail = canRecord || canConfirm;
   if (!canRecord && !canConfirm && !canCancel) redirect("/dashboard");
 
   const supabase = await createClient();
@@ -59,7 +62,7 @@ export default async function ProductionDetailPage({
     supabase
       .from("production_orders")
       .select(
-        "id, reference, status, planned_output_qty, actual_output_qty, output_lot_number, production_date, expiration_date, notes, started_at, submitted_at, confirmed_at, template:production_templates(name, default_expiry_days), recipe_version:recipe_versions(version_number, expected_yield_pct, expected_waste_pct), output_item:inventory_items!production_orders_output_item_id_fkey(name, sku), output_unit:units!production_orders_output_unit_id_fkey(code)",
+        "id, reference, status, planned_output_qty, actual_output_qty, output_lot_number, production_date, expiration_date, notes, started_at, submitted_at, confirmed_at, failed_at, failure_reason, template:production_templates(name, default_expiry_days), recipe_version:recipe_versions(version_number, expected_yield_pct, expected_waste_pct), output_item:inventory_items!production_orders_output_item_id_fkey(name, sku), output_unit:units!production_orders_output_unit_id_fkey(code)",
       )
       .eq("id", id)
       .single(),
@@ -103,6 +106,8 @@ export default async function ProductionDetailPage({
     startedAt: raw.started_at,
     submittedAt: raw.submitted_at,
     confirmedAt: raw.confirmed_at,
+    failedAt: raw.failed_at,
+    failureReason: raw.failure_reason,
   };
   const warnings =
     order.actualOutputQty === null
@@ -141,6 +146,7 @@ export default async function ProductionDetailPage({
         canRecord={canRecord}
         canConfirm={canConfirm}
         canCancel={canCancel}
+        canFail={canFail}
         defaultProductionDate={defaultProductionDate}
         defaultExpirationDate={defaultExpirationDate}
       />

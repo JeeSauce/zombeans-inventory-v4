@@ -15,6 +15,9 @@ import {
   Factory,
   Warehouse,
   CalendarClock,
+  CalendarDays,
+  Bell,
+  MapPinned,
   type LucideIcon,
 } from "lucide-react";
 
@@ -93,6 +96,9 @@ export const NAV_ITEMS: NavItem[] = [
       "closure.reopen",
     ],
   },
+  { label: "Calendar", href: "/calendar", icon: CalendarDays },
+  { label: "Popup events", href: "/popups", icon: MapPinned },
+  { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Users", href: "/admin/users", icon: Users, permission: "users.manage" },
   { label: "Branches", href: "/admin/branches", icon: Store, permission: "settings.manage" },
   { label: "Settings", href: "/admin/settings", icon: Settings, permission: "settings.manage" },
