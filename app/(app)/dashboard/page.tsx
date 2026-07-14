@@ -76,6 +76,7 @@ export default async function DashboardPage({
   return (
     <DashboardClient
       firstName={auth.fullName.split(" ")[0] || "there"}
+      roleLabel={auth.roleLabel}
       data={operational.success ? operational.data : null}
       financials={financials}
       filters={filters}

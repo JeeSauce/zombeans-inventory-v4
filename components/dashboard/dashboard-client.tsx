@@ -49,6 +49,7 @@ function KpiCard({
 
 export function DashboardClient({
   firstName,
+  roleLabel,
   data,
   financials,
   filters,
@@ -57,6 +58,7 @@ export function DashboardClient({
   loadError,
 }: {
   firstName: string;
+  roleLabel: string;
   data: DashboardData | null;
   financials: DashboardFinancials | null;
   filters: DashboardFilters;
@@ -72,12 +74,15 @@ export function DashboardClient({
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <div>
-        <p className="eyebrow text-xs">{formatHumanDate(new Date())}</p>
-        <h1 className="font-display mt-1 text-3xl">Welcome back, {firstName}</h1>
-        <p className="text-muted-foreground mt-1">
-          Role-filtered operations, alerts, movement, and upcoming work.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="eyebrow text-xs">{formatHumanDate(new Date())}</p>
+          <h1 className="font-display mt-1 text-3xl">Welcome back, {firstName}</h1>
+          <p className="text-muted-foreground mt-1">
+            Role-filtered operations, alerts, movement, and upcoming work.
+          </p>
+        </div>
+        <Badge variant="outline">{roleLabel}</Badge>
       </div>
 
       <Card>
