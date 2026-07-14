@@ -21,6 +21,7 @@ import {
   FileChartColumn,
   Trash2,
   DatabaseBackup,
+  WifiOff,
   type LucideIcon,
 } from "lucide-react";
 
@@ -98,6 +99,12 @@ export const NAV_ITEMS: NavItem[] = [
       "recount.confirm_unusual",
       "closure.reopen",
     ],
+  },
+  {
+    label: "Offline & POS",
+    href: "/offline-pos",
+    icon: WifiOff,
+    permissions: ["offline.sync", "offline.review", "pos.import"],
   },
   { label: "Calendar", href: "/calendar", icon: CalendarDays },
   { label: "Popup events", href: "/popups", icon: MapPinned },

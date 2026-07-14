@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1a1a14" />
+    <title>Zombeans · Offline</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #1a1a14;
+        color: #f7f6f2;
+        font-family: system-ui, sans-serif;
+      }
+      main {
+        max-width: 34rem;
+        margin: 1rem;
+        padding: 2rem;
+        border: 1px solid #465143;
+        border-radius: 1rem;
+        background: #24241d;
+      }
+      h1 {
+        margin-top: 0;
+      }
+      strong {
+        color: #31e11a;
+      }
+      button {
+        min-height: 2.5rem;
+        padding: 0 1rem;
+        border: 0;
+        border-radius: 0.6rem;
+        background: #31e11a;
+        color: #10140f;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><strong>Offline mode</strong></p>
+      <h1>No network connection</h1>
+      <p>
+        An already-open Offline &amp; POS screen can still edit device drafts. Reconnect before
+        reopening the authenticated app or synchronizing; posting requests are never cached.
+      </p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </main>
+  </body>
+</html>

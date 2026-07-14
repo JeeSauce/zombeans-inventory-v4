@@ -200,3 +200,37 @@ stateDiagram-v2
         Later ledger/recount rows link to that event explicitly.
     end note
 ```
+
+## Offline draft → synchronized or reviewed
+
+```mermaid
+flowchart TD
+    A["Online: request scoped server snapshot"] --> B["Store receipt + draft in IndexedDB"]
+    B --> C["Edit offline; keep stable idempotency key"]
+    C --> D["Reconnect and submit to SECURITY DEFINER function"]
+    D --> E{"Snapshot actor, branch, scope and watermark valid?"}
+    E -->|no| F["Reject safely; no inventory effect"]
+    E -->|yes| G{"New overlapping movement?"}
+    G -->|no| H["Call existing atomic recount/production primitive"]
+    G -->|yes| I["Hold as review_required"]
+    I --> J["Authorized reviewer records reasoned accept/reject"]
+    J -->|accept| H
+    J -->|reject| K["Rejected; no inventory effect"]
+    H --> L["Append ledger/audit evidence and return synchronized result"]
+```
+
+## Loyverse CSV preview → explicit posting
+
+```mermaid
+flowchart TD
+    A["Map external item/variant/modifier"] --> B["Upload bounded UTF-8 CSV"]
+    B --> C["Preview validates headers, mappings, duplicates and quantities"]
+    C --> D["Persist immutable staging rows"]
+    D --> E["Balances, lots and ledger remain unchanged"]
+    E --> F{"Every row valid and user confirms with reason?"}
+    F -->|no| G["Keep preview only"]
+    F -->|yes| H["Atomic confirm locks import"]
+    H --> I["One pos_sale/pos_refund ledger transaction per external line"]
+    I --> J["Update balance/lots, raise Critical negative alert if needed"]
+    J --> K["Append posting evidence; replay returns same result"]
+```

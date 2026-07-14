@@ -71,10 +71,28 @@ CI greps the client bundle (`.next/static`) for the service-role key pattern and
   `backup.manage` can read status/history. Browser coverage verifies truthful empty status when no
   external infrastructure has reported a run.
 
+## Phase 10 gate
+
+- **Scenario 17 — idempotent offline sync:** real Postgres submits the same server-scoped recount
+  draft twice with one idempotency key and proves the second call returns the first result without
+  adding another submission, recount, ledger transaction, ledger line, or balance change.
+- **Scenario 18 — explicit conflict review:** two server snapshots of the same branch/date/item are
+  submitted after the first count posts. The second is held as `review_required`, changes no
+  inventory, and can transition only through a reasoned `offline.review` decision.
+- **Scenario 24 — preview is staging only:** CSV preview leaves transactions, lines, balances, and
+  lots byte-for-byte unchanged. Explicit confirmation posts exactly one ledger transaction per
+  external line, and replay adds nothing.
+- Permission/RLS coverage also proves Inventory Staff cannot import POS data or directly insert
+  submission rows, POS staging is hidden from that role, barcode lookup is read-only and
+  cost-free, and a snapshot receipt cannot be used by another actor.
+- Phase 10 integration files run serially with the rest of the real-Postgres suite because all
+  files share one local database; this prevents teardown deadlocks without weakening assertions.
+
 ## Coverage focus
 
 Highest rigor on costing math (weighted-average, multi-level recipes, actual-yield cost), FEFO lot
-selection, atomic posting, and idempotency — these are the correctness-critical paths.
+selection, atomic posting, offline conflict detection, preview/confirm separation, and idempotency
+— these are the correctness-critical paths.
 
 ## Commands
 

@@ -69,13 +69,13 @@ Operational calendar; popup event sessions; in-app + email notifications; dashbo
 Reports; CSV/Excel/PDF/print exports; soft delete; auto-purge; backup jobs; restore docs.
 **Gate:** critical tests 14, 15, 16 pass. **Complete 2026-07-14.**
 
-## Phase 10 — Offline & POS Preparation ← next
+## Phase 10 — Offline & POS Preparation
 
 Offline drafts; sync queue; conflict review; barcode scanning; Loyverse mapping tables; CSV
 importer with preview; POS interfaces without live sync.
-**Gate:** critical tests 17, 18, 24 pass.
+**Gate:** critical tests 17, 18, 24 pass. **Complete 2026-07-14.**
 
-## Phase 11 — Hardening & Deployment
+## Phase 11 — Hardening & Deployment ← next
 
 Security review; RLS penetration tests; performance; accessibility; mobile; recovery testing;
 staging deploy; production checklist; Vercel deploy.
