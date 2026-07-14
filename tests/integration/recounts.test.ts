@@ -1,6 +1,6 @@
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { assignRole, connect, createUser } from "./helpers/db";
+import { assignBranch, assignRole, connect, createUser } from "./helpers/db";
 
 const EMAIL_PATTERN = "%@recounts-phase7.test";
 const SKU_PATTERN = "RECOUNTTEST-%";
@@ -234,6 +234,8 @@ beforeAll(async () => {
       [users.super],
     )
   ).rows[0]!.id;
+  await assignBranch(admin, users.inventory, base.branch);
+  await assignBranch(admin, users.production, base.branch);
 
   items.ordinary = await createItem("ORDINARY", 20);
   items.unusual = await createItem("UNUSUAL", 10);

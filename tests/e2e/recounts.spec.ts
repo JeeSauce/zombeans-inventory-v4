@@ -116,6 +116,11 @@ test.describe("Phase 7 recounts and daily operations", () => {
         [`${prefix.toLowerCase()}-branch`, branchName, superId],
       )
     ).rows[0]!.id;
+    await db.query(
+      `insert into public.user_branch_assignments (profile_id, branch_id)
+       values ($1, $2) on conflict do nothing`,
+      [inventoryId, branchId],
+    );
     itemId = (
       await db.query<{ id: string }>(
         `insert into public.inventory_items (

@@ -61,10 +61,19 @@ as $$
   select p_uid is not null
     and p_uid = auth.uid()
     and (
-      not exists (
-        select 1
-        from public.user_branch_assignments uba
-        where uba.profile_id = p_uid
+      public.is_super_admin(p_uid)
+      or (
+        exists (
+          select 1
+          from public.user_roles ur
+          join public.roles r on r.id = ur.role_id
+          where ur.profile_id = p_uid and r.key = 'branch_manager'
+        )
+        and not exists (
+          select 1
+          from public.user_branch_assignments uba
+          where uba.profile_id = p_uid
+        )
       )
       or exists (
         select 1

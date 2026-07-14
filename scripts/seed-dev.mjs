@@ -78,10 +78,33 @@ async function upsertUser(u) {
     .from("user_roles")
     .upsert({ profile_id: user.id, role_id: role.id }, { onConflict: "profile_id,role_id" });
   if (urErr) throw urErr;
+  return user.id;
 }
 
+const seededUserIds = new Map();
 for (const u of USERS) {
-  await upsertUser(u);
+  seededUserIds.set(u.role, await upsertUser(u));
+}
+
+const { data: branches, error: branchErr } = await admin
+  .from("branches")
+  .select("id")
+  .eq("active", true)
+  .is("deleted_at", null);
+if (branchErr) throw branchErr;
+const assignedBy = seededUserIds.get("super_admin");
+const assignments = ["production", "inventory"].flatMap((role) =>
+  (branches ?? []).map((branch) => ({
+    profile_id: seededUserIds.get(role),
+    branch_id: branch.id,
+    assigned_by: assignedBy,
+  })),
+);
+if (assignments.length > 0) {
+  const { error: assignmentErr } = await admin
+    .from("user_branch_assignments")
+    .upsert(assignments, { onConflict: "profile_id,branch_id" });
+  if (assignmentErr) throw assignmentErr;
 }
 console.log(`\nDone. Log in with any of the above and password: ${PASSWORD}`);
 console.log(

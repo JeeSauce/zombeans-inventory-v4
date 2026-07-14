@@ -1,6 +1,6 @@
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { asUser, assignRole, cleanupUsers, connect, createUser } from "./helpers/db";
+import { asUser, assignBranch, assignRole, cleanupUsers, connect, createUser } from "./helpers/db";
 
 const EMAIL_LIKE = "phase8+%@zombeans.test";
 const DEDUP_LIKE = "phase8:%";
@@ -125,6 +125,8 @@ beforeAll(async () => {
   );
   fixture.main = branches.rows.find((branch) => branch.key === "commissary")!.id;
   fixture.popup = branches.rows.find((branch) => branch.key === "popup")!.id;
+  await assignBranch(admin, users.production, fixture.main);
+  await assignBranch(admin, users.inventory, fixture.main);
   fixture.unit = (
     await admin.query<{ id: string }>(`select id from public.units where code = 'pc'`)
   ).rows[0]!.id;

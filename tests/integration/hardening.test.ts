@@ -95,6 +95,37 @@ describe("Phase 11 database security contract", () => {
     expect(crossUser).toEqual({ admin: false, branch: false, cost: false });
   });
 
+  it("fails closed for unassigned operational staff while preserving manager/global scope", async () => {
+    const branchId = crypto.randomUUID();
+    const production = await asUser(acting, users.production, async (client) => {
+      const result = await client.query<{ allowed: boolean }>(
+        `select public.has_branch_access($1, $2) allowed`,
+        [users.production, branchId],
+      );
+      return result.rows[0]!.allowed;
+    });
+    const inventory = await asUser(acting, users.inventory, async (client) => {
+      const result = await client.query<{ allowed: boolean }>(
+        `select public.has_branch_access($1, $2) allowed`,
+        [users.inventory, branchId],
+      );
+      return result.rows[0]!.allowed;
+    });
+    const manager = await asUser(acting, users.manager, async (client) => {
+      const result = await client.query<{ allowed: boolean }>(
+        `select public.has_branch_access($1, $2) allowed`,
+        [users.manager, branchId],
+      );
+      return result.rows[0]!.allowed;
+    });
+
+    expect({ production, inventory, manager }).toEqual({
+      production: false,
+      inventory: false,
+      manager: true,
+    });
+  });
+
   it("permission-checks browser-callable reference generators", async () => {
     const po = await asUser(acting, users.manager, (client) =>
       client.query<{ reference: string }>(`select public.next_po_reference() reference`),

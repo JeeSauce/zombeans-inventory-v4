@@ -48,6 +48,21 @@ export async function assignRole(admin: Client, profileId: string, roleKey: stri
   );
 }
 
+/** Explicitly scope an operational test actor to a branch. */
+export async function assignBranch(
+  admin: Client,
+  profileId: string,
+  branchId: string,
+  assignedBy?: string,
+): Promise<void> {
+  await admin.query(
+    `insert into public.user_branch_assignments (profile_id, branch_id, assigned_by)
+     values ($1, $2, $3)
+     on conflict (profile_id, branch_id) do nothing`,
+    [profileId, branchId, assignedBy ?? null],
+  );
+}
+
 /**
  * Run a callback as a given authenticated user, with RLS enforced. Everything happens inside a
  * transaction that is rolled back, so tests never mutate shared state.

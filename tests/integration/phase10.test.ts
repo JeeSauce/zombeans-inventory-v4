@@ -1,6 +1,6 @@
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { assignRole, cleanupUsers, connect, createUser } from "./helpers/db";
+import { assignBranch, assignRole, cleanupUsers, connect, createUser } from "./helpers/db";
 
 const EMAIL_PATTERN = "%@phase10.test";
 const SKU = "PHASE10-ITEM";
@@ -217,6 +217,7 @@ beforeAll(async () => {
       [users.manager],
     )
   ).rows[0]!.id;
+  await assignBranch(admin, users.inventory, base.branch);
   base.item = (
     await admin.query<{ id: string }>(
       `insert into public.inventory_items (

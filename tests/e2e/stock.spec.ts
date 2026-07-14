@@ -62,6 +62,11 @@ test.describe("Phase 6 stock permissions and alerts", () => {
         [`${prefix.toLowerCase()}-branch`, `${prefix} Branch`, inventoryId],
       )
     ).rows[0]!.id;
+    await db.query(
+      `insert into public.user_branch_assignments (profile_id, branch_id)
+       values ($1, $2) on conflict do nothing`,
+      [inventoryId, branchId],
+    );
     negativeItemId = (
       await db.query<{ id: string }>(
         `insert into public.inventory_items
