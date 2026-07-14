@@ -11,6 +11,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="bg-background text-foreground flex min-h-screen">
+      <a
+        href="#main-content"
+        className="bg-primary text-primary-foreground focus:ring-ring sr-only z-50 rounded-md px-4 py-3 font-medium shadow-lg focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:ring-2 focus:ring-offset-2"
+      >
+        Skip to main content
+      </a>
       <Sidebar permissions={ctx.permissions} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="bg-card flex h-16 items-center justify-between gap-2 border-b px-4 md:px-6">
@@ -20,7 +26,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <ThemeToggle />
           <UserMenu fullName={ctx.fullName} email={ctx.email} roleLabel={ctx.roleLabel} />
         </header>
-        <main className="flex-1 p-4 md:p-8">{children}</main>
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 p-4 md:p-8">
+          {children}
+        </main>
       </div>
       <Toaster />
       <ServiceWorkerRegister />

@@ -20,13 +20,13 @@
   --card-foreground: #203222;
   --popover: #ffffff;
   --popover-foreground: #203222;
-  --primary: #c98a2b; /* deeper gold for contrast on cream (brand amber family) */
+  --primary: #955f0d; /* accessible deep gold on cream (brand amber family) */
   --primary-foreground: #fff8e8;
   --secondary: #eae1d3;
   --secondary-foreground: #203222;
   --muted: #efe7db;
   --muted-foreground: #5f6b54;
-  --accent: #65845b;
+  --accent: #5b7852;
   --accent-foreground: #ffffff;
   --border: #ddd3c5;
   --input: #d3c8b8;
@@ -71,11 +71,11 @@
   --popover-foreground: #ede0d6;
   --primary: #e5c07b;
   --primary-foreground: #1e2016;
-  --secondary: #65845b;
+  --secondary: #486640;
   --secondary-foreground: #ede0d6;
   --muted: #24371f;
   --muted-foreground: #b9c3ac;
-  --accent: #65845b;
+  --accent: #486640;
   --accent-foreground: #ede0d6;
   --border: #65845b40;
   --input: #3a4d38;
@@ -130,6 +130,10 @@
     color: var(--foreground);
     font-family: var(--font-sans);
   }
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+  }
   /* Eyebrow / display helper — Poppins SemiBold, tracked-out uppercase. */
   .font-display {
     font-family: var(--font-display);
@@ -145,5 +149,28 @@
   .font-data {
     font-family: var(--font-mono);
     font-feature-settings: "tnum" 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  [role="menuitem"],
+  input,
+  select,
+  textarea,
+  nav a {
+    min-block-size: 44px;
   }
 }
