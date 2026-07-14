@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { writeAudit } from "@/lib/audit";
+import { refreshOperationalNotifications } from "@/lib/notifications/refresh";
 import { requirePermission } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -25,7 +26,19 @@ function revalidateStock(transferId?: string) {
   revalidatePath("/stock");
   revalidatePath("/stock/requests");
   revalidatePath("/stock/transfers");
+  revalidatePath("/dashboard");
+  revalidatePath("/notifications");
   if (transferId) revalidatePath(`/stock/transfers/${transferId}`);
+}
+
+async function refreshNotificationsAfterStock(): Promise<void> {
+  try {
+    await refreshOperationalNotifications();
+  } catch (error) {
+    // The stock mutation is already committed and idempotent. Its database trigger has atomically
+    // persisted any Critical negative alert/outbox row; a later request can retry delivery.
+    console.error("Phase 8 notification refresh failed after stock command", error);
+  }
 }
 
 export async function postStockInAction(
@@ -71,6 +84,7 @@ export async function postStockInAction(
     branchId: parsed.data.branchId,
     after: { reason: parsed.data.reason, lineCount: parsed.data.lines.length },
   });
+  await refreshNotificationsAfterStock();
   revalidateStock();
   return { info: "Stock-in posted to the append-only ledger." };
 }
@@ -106,6 +120,7 @@ export async function postStockOutAction(
     branchId: parsed.data.branchId,
     after: { reason: parsed.data.reason, lineCount: parsed.data.lines.length },
   });
+  await refreshNotificationsAfterStock();
   revalidateStock();
   return {
     info: "Stock-out posted. Any negative balance remains visible with a Critical alert.",
@@ -144,6 +159,7 @@ export async function createStockRequestAction(
       after: { reference: result.reference, lineCount: parsed.data.lines.length },
     });
   }
+  await refreshNotificationsAfterStock();
   revalidateStock();
   return {
     info: result.already_exists
@@ -195,6 +211,7 @@ export async function reviewStockRequestAction(
     entityId: requestId,
     after: { decision: parsed.data.decision },
   });
+  await refreshNotificationsAfterStock();
   revalidateStock();
   return { info: `Request ${parsed.data.decision === "approve" ? "approved" : "rejected"}.` };
 }
@@ -269,6 +286,7 @@ export async function approveTransferAction(transferId: string): Promise<StockAc
     entityType: "transfer",
     entityId: transferId,
   });
+  await refreshNotificationsAfterStock();
   revalidateStock(transferId);
   return { info: "Transfer approved and dispatched from source inventory." };
 }
@@ -320,6 +338,7 @@ export async function receiveTransferAction(
     entityId: transferId,
     after: { discrepancyReason: parsed.data.discrepancyReason ?? null },
   });
+  await refreshNotificationsAfterStock();
   revalidateStock(transferId);
   return { info: "Transfer received. Destination stock was posted exactly once." };
 }

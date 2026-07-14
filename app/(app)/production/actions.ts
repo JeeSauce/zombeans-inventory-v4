@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { writeAudit } from "@/lib/audit";
+import { dispatchPendingNotificationEmails } from "@/lib/email/notification-delivery";
+import { refreshOperationalNotifications } from "@/lib/notifications/refresh";
 import { requirePermission } from "@/lib/permissions";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -10,11 +12,27 @@ import {
   productionOrderIdSchema,
   productionTemplateSchema,
 } from "@/lib/validation/production";
+import { productionFailureSchema } from "@/lib/validation/phase8";
 
 export type ProductionActionState = { error?: string; info?: string; orderId?: string };
 
 function cleanError(message: string): string {
   return message.replace(/^.*?:\s*/, "");
+}
+
+function revalidateProduction(orderId?: string) {
+  revalidatePath("/production");
+  if (orderId) revalidatePath(`/production/${orderId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/notifications");
+}
+
+async function refreshNotificationsAfterProduction(): Promise<void> {
+  try {
+    await refreshOperationalNotifications();
+  } catch (error) {
+    console.error("Phase 8 notification refresh failed after production command", error);
+  }
 }
 
 export async function createProductionTemplateAction(
@@ -202,9 +220,51 @@ export async function confirmProductionAction(orderId: string): Promise<Producti
     entityId: orderId,
     after: { outputTransactionId: data },
   });
-  revalidatePath(`/production/${orderId}`);
-  revalidatePath("/production");
+  await refreshNotificationsAfterProduction();
+  revalidateProduction(orderId);
   return { info: "Production completed and inventory posted." };
+}
+
+export async function markProductionFailedAction(
+  orderId: string,
+  _previous: ProductionActionState,
+  formData: FormData,
+): Promise<ProductionActionState> {
+  const parsed = productionFailureSchema.safeParse({
+    orderId,
+    reason: formData.get("reason"),
+    idempotencyKey: formData.get("idempotencyKey"),
+  });
+  if (!parsed.success)
+    return { error: parsed.error.issues[0]?.message ?? "Invalid failure report" };
+  try {
+    try {
+      await requirePermission("production.record");
+    } catch {
+      await requirePermission("production.confirm");
+    }
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("mark_production_failed", {
+      p_order_id: parsed.data.orderId,
+      p_reason: parsed.data.reason,
+      p_idempotency_key: parsed.data.idempotencyKey,
+    });
+    if (error) return { error: cleanError(error.message) };
+    const result = data as { reference: string; replayed: boolean };
+    try {
+      await dispatchPendingNotificationEmails();
+    } catch (deliveryError) {
+      console.error("Failed production email remains queued for retry", deliveryError);
+    }
+    revalidateProduction(orderId);
+    return {
+      info: result.replayed
+        ? `${result.reference} was already recorded as failed.`
+        : `${result.reference} recorded as failed with a Critical alert.`,
+    };
+  } catch (error) {
+    return { error: cleanError(error instanceof Error ? error.message : "Failure report failed") };
+  }
 }
 
 export async function cancelProductionAction(orderId: string): Promise<ProductionActionState> {
