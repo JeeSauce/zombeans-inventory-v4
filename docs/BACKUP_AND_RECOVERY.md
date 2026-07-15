@@ -110,6 +110,25 @@ recovery drill passed. This proves the repository-controlled lifecycle and recov
 does **not** claim that a real production export was restored. The first scratch restore remains an
 operator-owned deployment prerequisite.
 
+### Production free-tier procedure (in use since 2026-07-16)
+
+Production runs on the Supabase **free tier**, which has no managed PITR/daily backups, so these
+logical dumps are the sole DR layer. Because standalone `pg_dump`/`pg_restore` are not installed on
+the operator machine, backups use the **Supabase CLI** (`supabase db dump --linked`) rather than the
+custom-format `pg_dump` above — no password is handled in plaintext (linked credentials are cached).
+
+- **Backup:** run `scripts/backup-prod.sh` (guards that the CLI is linked to prod). It writes four
+  gitignored files to `backups/`: roles, public schema, public data (COPY), and `auth` data. Copy
+  them to encrypted off-site storage.
+- **Restore target:** a **fresh Supabase project** (it provisions the `auth`/`storage`/`vault`/
+  `supabase_migrations` infrastructure the logical dump omits). Load order: roles → schema → public
+  data → auth data, with `SET session_replication_role = replica;` during data load to disable FKs/
+  triggers (also sidesteps the `stock_transactions`↔`transfers` circular FK).
+- **Drill evidence (2026-07-16):** restored into a throwaway DB in the local Supabase cluster —
+  76/76 public tables, protected Super Admin + role, and all seed reference data intact.
+  **RTO ≈ 4s, RPO ≈ 0** (on-demand). Full RTO/RPO against a fresh project will be larger and should
+  be re-measured once production carries real transaction volume.
+
 ## Recycle bin vs backup
 
 Soft-deleted business records live 30 days in the recycle bin (Super Admin restore) and are then

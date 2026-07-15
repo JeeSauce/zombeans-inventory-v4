@@ -5,6 +5,24 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Ops — Production go-live + backup/restore drill — 2026-07-16
+
+- Production went live on isolated infrastructure: dedicated Supabase project (region ap-northeast-1),
+  all 38 migrations applied, protected Super Admin bootstrapped, custom domain `https://zombeans.site`,
+  verified Resend sending domain, and Vercel env scoped (Production → prod, Preview → staging). Cutover
+  verified end-to-end (super-admin step-up login, prod audit trail, empty catalog, zero runtime errors,
+  full security-header set).
+- Added `scripts/backup-prod.sh` — CLI-based daily logical backup (roles + public schema + public data +
+  auth accounts). Production is on the Supabase free tier (no managed PITR), so this is the primary DR
+  layer. Backups are gitignored; copy off-site encrypted.
+- **Scratch-restore drill (2026-07-16):** restored the logical backup into a throwaway database in the
+  local Supabase cluster. Result: 76/76 public tables, Super Admin (protected + `super_admin` role) and
+  all seed reference data (4 roles, 42 permissions, 12 units) restored intact. **RTO ≈ 4s, RPO ≈ 0**
+  (on-demand dump). Caveat recorded: `supabase db dump` omits Supabase-managed schemas
+  (`supabase_migrations`, `storage`/`auth` internals), so a full-fidelity restore targets a fresh
+  Supabase project and loads roles → schema → public data → auth data with `session_replication_role =
+replica` (also sidesteps the `stock_transactions`↔`transfers` circular FK).
+
 ### Security — Trigger search_path hardening — 2026-07-15
 
 - Added migration `0038` pinning `search_path = ''` on the four invoker-rights trigger functions
