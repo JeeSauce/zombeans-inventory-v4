@@ -1,6 +1,6 @@
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { asUser, assignRole, cleanupUsers, connect, createUser } from "./helpers/db";
+import { asUser, assignBranch, assignRole, cleanupUsers, connect, createUser } from "./helpers/db";
 
 const EMAIL_LIKE = "phase9+%@zombeans.test";
 const PREFIX = "P9 Gate";
@@ -178,11 +178,8 @@ beforeAll(async () => {
      values ($1,$2,5,$3,11.25)`,
     [transactionId, fixture.reportItem, fixture.unit],
   );
-  await admin.query(
-    `insert into public.user_branch_assignments (profile_id, branch_id, assigned_by)
-     values ($1,$2,$3)`,
-    [users.inventory, fixture.branchAllowed, users.super],
-  );
+  await assignBranch(admin, users.inventory, fixture.branchAllowed);
+  await assignBranch(admin, users.production, fixture.branchAllowed);
 
   const categoryRows = await admin.query<{ id: string; name: string }>(
     `insert into public.categories (name, item_type, active, deleted_at, deleted_by, purge_at)

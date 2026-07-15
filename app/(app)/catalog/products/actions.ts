@@ -94,7 +94,7 @@ export async function setBranchPricesAction(
     .is("deleted_at", null);
   if (branchErr || !branches) return { error: "Could not load branches." };
 
-  let changed = 0;
+  const prices: Array<{ branchId: string; price: number | null; taxMode: TaxMode }> = [];
   for (const branch of branches) {
     const raw = formData.get(`price_${branch.id}`);
     const taxRaw = String(formData.get(`tax_${branch.id}`) ?? "none");
@@ -103,51 +103,29 @@ export async function setBranchPricesAction(
       : "none";
     const priceStr = typeof raw === "string" ? raw.trim() : "";
 
-    const { data: existing } = await supabase
-      .from("branch_prices")
-      .select("id, price")
-      .eq("branch_id", branch.id)
-      .eq("product_id", productId)
-      .maybeSingle();
-
     if (priceStr === "") {
-      if (existing) {
-        await supabase.from("branch_prices").delete().eq("id", existing.id);
-        changed++;
-      }
+      prices.push({ branchId: branch.id, price: null, taxMode });
       continue;
     }
 
     const price = Number(priceStr);
     if (!Number.isFinite(price) || price < 0) return { error: `Invalid price for ${branch.name}.` };
-
-    if (existing) {
-      const { error } = await supabase
-        .from("branch_prices")
-        .update({ price, tax_mode: taxMode, updated_by: user.id })
-        .eq("id", existing.id);
-      if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
-    } else {
-      const { error } = await supabase.from("branch_prices").insert({
-        branch_id: branch.id,
-        product_id: productId,
-        price,
-        tax_mode: taxMode,
-        created_by: user.id,
-        updated_by: user.id,
-      });
-      if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
-    }
-    changed++;
+    prices.push({ branchId: branch.id, price, taxMode });
   }
+
+  const { data: changed, error: priceErr } = await supabase.rpc("set_product_branch_prices", {
+    p_product_id: productId,
+    p_prices: prices,
+  });
+  if (priceErr) return { error: priceErr.message.replace(/^.*?:\s*/, "") };
 
   await writeAudit({
     actorId: user.id,
     action: "product.prices.updated",
     entityType: "product",
     entityId: productId,
-    after: { branchesChanged: changed },
+    after: { branchesChanged: Number(changed ?? 0) },
   });
   revalidatePath("/catalog/products");
-  return { info: changed ? "Prices saved." : "No changes." };
+  return { info: Number(changed ?? 0) > 0 ? "Prices saved." : "No changes." };
 }

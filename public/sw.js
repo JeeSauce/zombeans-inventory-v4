@@ -1,4 +1,4 @@
-const CACHE = "zombeans-shell-v10";
+const CACHE = "zombeans-shell-v11";
 const PRECACHE = [
   "/manifest.webmanifest",
   "/brand/logo.png",

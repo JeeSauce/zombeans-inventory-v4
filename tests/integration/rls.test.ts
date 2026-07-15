@@ -41,32 +41,38 @@ afterAll(async () => {
 
 describe("permission helpers", () => {
   it("super admin has cost.read; manager and inventory do not", async () => {
-    const s = await admin.query(`select public.has_permission($1,'cost.read') as ok`, [ids.super]);
-    const m = await admin.query(`select public.has_permission($1,'cost.read') as ok`, [
-      ids.manager,
-    ]);
-    const i = await admin.query(`select public.has_permission($1,'cost.read') as ok`, [
-      ids.inventory,
-    ]);
+    const s = await asUser(acting, ids.super, (client) =>
+      client.query(`select public.has_permission($1,'cost.read') as ok`, [ids.super]),
+    );
+    const m = await asUser(acting, ids.manager, (client) =>
+      client.query(`select public.has_permission($1,'cost.read') as ok`, [ids.manager]),
+    );
+    const i = await asUser(acting, ids.inventory, (client) =>
+      client.query(`select public.has_permission($1,'cost.read') as ok`, [ids.inventory]),
+    );
     expect(s.rows[0].ok).toBe(true);
     expect(m.rows[0].ok).toBe(false);
     expect(i.rows[0].ok).toBe(false);
   });
 
   it("is_super_admin is true only for the super admin", async () => {
-    const s = await admin.query(`select public.is_super_admin($1) as ok`, [ids.super]);
-    const m = await admin.query(`select public.is_super_admin($1) as ok`, [ids.manager]);
+    const s = await asUser(acting, ids.super, (client) =>
+      client.query(`select public.is_super_admin($1) as ok`, [ids.super]),
+    );
+    const m = await asUser(acting, ids.manager, (client) =>
+      client.query(`select public.is_super_admin($1) as ok`, [ids.manager]),
+    );
     expect(s.rows[0].ok).toBe(true);
     expect(m.rows[0].ok).toBe(false);
   });
 
   it("inventory staff has stock.in but not price.write", async () => {
-    const a = await admin.query(`select public.has_permission($1,'stock.in') as ok`, [
-      ids.inventory,
-    ]);
-    const b = await admin.query(`select public.has_permission($1,'price.write') as ok`, [
-      ids.inventory,
-    ]);
+    const a = await asUser(acting, ids.inventory, (client) =>
+      client.query(`select public.has_permission($1,'stock.in') as ok`, [ids.inventory]),
+    );
+    const b = await asUser(acting, ids.inventory, (client) =>
+      client.query(`select public.has_permission($1,'price.write') as ok`, [ids.inventory]),
+    );
     expect(a.rows[0].ok).toBe(true);
     expect(b.rows[0].ok).toBe(false);
   });

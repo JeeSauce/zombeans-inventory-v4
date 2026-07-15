@@ -1,6 +1,6 @@
 import type { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { assignRole, connect, createUser } from "./helpers/db";
+import { assignBranch, assignRole, connect, createUser } from "./helpers/db";
 
 const EMAIL_PATTERN = "%@production-phase5.test";
 const SKU_PATTERN = "PRODTEST-%";
@@ -291,6 +291,7 @@ beforeAll(async () => {
 
   base.unit = (await admin.query(`select id from public.units where code = 'g'`)).rows[0]!.id;
   base.branch = (await admin.query(`select id from public.branches where is_main`)).rows[0]!.id;
+  await assignBranch(admin, users.production, base.branch);
 }, 60_000);
 
 afterAll(async () => {

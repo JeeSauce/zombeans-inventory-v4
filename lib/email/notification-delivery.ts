@@ -38,6 +38,7 @@ export async function dispatchPendingNotificationEmails(
         to: delivery.recipient_address,
         subject: `[Zombeans] ${delivery.subject}`,
         text: delivery.body,
+        idempotencyKey: `notification-delivery-${delivery.delivery_id}`,
       });
       const { error: finalizeError } = await admin.rpc("finalize_notification_email_delivery", {
         p_delivery_id: delivery.delivery_id,
