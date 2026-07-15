@@ -1,3 +1,5 @@
+import { createHmac } from "node:crypto";
+import { Client } from "pg";
 import { test, expect, type Page } from "@playwright/test";
 
 /**
@@ -8,6 +10,9 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 const PASSWORD = "Zombeans!Dev123";
+const DB_URL =
+  process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+const STEPUP_PEPPER = process.env.STEPUP_CODE_PEPPER ?? "local-dev-stepup-pepper-change-me";
 
 async function login(page: Page, email: string) {
   await page.goto("/login");
@@ -56,4 +61,53 @@ test("desktop sidebar hides admin sections from inventory staff", async ({ page 
   await expect(page.getByRole("link", { name: "Branches", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Settings", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Users", exact: true })).toHaveCount(0);
+});
+
+async function loginSuperAdmin(page: Page) {
+  await page.goto("/login");
+  await page.getByLabel("Email").fill("superadmin@zombeans.dev");
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).toHaveURL(/\/verify$/);
+  const db = new Client({ connectionString: DB_URL });
+  await db.connect();
+  try {
+    const { rows } = await db.query<{ id: string }>(
+      `select id from auth.users where email = 'superadmin@zombeans.dev'`,
+    );
+    const marker = createHmac("sha256", STEPUP_PEPPER)
+      .update(`stepup:${rows[0]!.id}`)
+      .digest("hex");
+    await page
+      .context()
+      .addCookies([
+        { name: "zb_stepup", value: marker, url: new URL(page.url()).origin, httpOnly: true },
+      ]);
+  } finally {
+    await db.end();
+  }
+}
+
+test("super admin edits and deactivates an inventory item", async ({ page }) => {
+  await loginSuperAdmin(page);
+  await page.goto("/catalog/items");
+
+  // Create a throwaway item to edit.
+  const label = `E2E ${Date.now()}`;
+  await page.getByRole("button", { name: /add item/i }).click();
+  await page.getByLabel("Name").fill(label);
+  await page.getByLabel("Base unit").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "Create item" }).click();
+  const row = page.getByRole("row", { name: new RegExp(label) });
+  await expect(row).toBeVisible();
+
+  // Edit: rename + deactivate.
+  await row.getByRole("button", { name: `Edit ${label}` }).click();
+  await page.getByLabel("Name").fill(`${label} edited`);
+  await page.getByLabel(/Active/).uncheck();
+  await page.getByRole("button", { name: "Save changes" }).click();
+
+  const editedRow = page.getByRole("row", { name: new RegExp(`${label} edited`) });
+  await expect(editedRow).toBeVisible();
+  await expect(editedRow.getByText("inactive")).toBeVisible();
 });

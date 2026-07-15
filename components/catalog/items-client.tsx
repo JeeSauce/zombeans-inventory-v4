@@ -3,8 +3,12 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
-import { createItemAction, type ItemActionState } from "@/app/(app)/catalog/items/actions";
+import { Pencil, Plus } from "lucide-react";
+import {
+  createItemAction,
+  updateItemAction,
+  type ItemActionState,
+} from "@/app/(app)/catalog/items/actions";
 import { ITEM_TYPES } from "@/lib/validation/catalog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +43,17 @@ export interface ItemRow {
   active: boolean;
   categoryName: string | null;
   baseUnit: string;
+  categoryId: string | null;
+  baseUnitId: string;
+  purchaseUnitId: string | null;
+  lowStockThreshold: number | null;
+  reorderLevel: number | null;
+  trackable: boolean;
+  batchTracked: boolean;
+  expiryTracked: boolean;
+  isConsumable: boolean;
+  storageNotes: string | null;
+  version: number;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -52,13 +67,190 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const selectClass =
-  "border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none";
+  "border-input bg-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60";
 
-function Submit() {
+/**
+ * Shared item form fields for the create and edit dialogs. When `lockStructural` is set (edit),
+ * item type and base unit are disabled and submitted via hidden inputs so they can't change —
+ * the server ignores them regardless, this is just a clear, consistent UI.
+ */
+function ItemFormFields({
+  itemType,
+  setItemType,
+  units,
+  scopedCategories,
+  defaults,
+  lockStructural = false,
+}: {
+  itemType: string;
+  setItemType: (v: string) => void;
+  units: OptionRow[];
+  scopedCategories: (OptionRow & { itemType: string })[];
+  defaults?: ItemRow;
+  lockStructural?: boolean;
+}) {
+  return (
+    <>
+      <div className="space-y-2">
+        <Label htmlFor="name">Name</Label>
+        <Input id="name" name="name" defaultValue={defaults?.name} required />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="itemType">Type</Label>
+          <select
+            id="itemType"
+            name="itemType"
+            className={selectClass}
+            value={itemType}
+            onChange={(e) => setItemType(e.target.value)}
+            disabled={lockStructural}
+          >
+            {ITEM_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {TYPE_LABELS[t]}
+              </option>
+            ))}
+          </select>
+          {lockStructural && (
+            <>
+              <input type="hidden" name="itemType" value={itemType} />
+              <p className="text-muted-foreground text-xs">Can&apos;t be changed after creation.</p>
+            </>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="categoryId">Category</Label>
+          <select
+            id="categoryId"
+            name="categoryId"
+            className={selectClass}
+            defaultValue={defaults?.categoryId ?? ""}
+          >
+            <option value="">— none —</option>
+            {scopedCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="baseUnitId">Base unit</Label>
+          <select
+            id="baseUnitId"
+            name="baseUnitId"
+            className={selectClass}
+            required
+            defaultValue={defaults?.baseUnitId ?? ""}
+            disabled={lockStructural}
+          >
+            <option value="" disabled>
+              Choose…
+            </option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.label}
+              </option>
+            ))}
+          </select>
+          {lockStructural && (
+            <>
+              <input type="hidden" name="baseUnitId" value={defaults?.baseUnitId ?? ""} />
+              <p className="text-muted-foreground text-xs">Can&apos;t be changed after creation.</p>
+            </>
+          )}
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="purchaseUnitId">Purchase unit (optional)</Label>
+          <select
+            id="purchaseUnitId"
+            name="purchaseUnitId"
+            className={selectClass}
+            defaultValue={defaults?.purchaseUnitId ?? ""}
+          >
+            <option value="">— same as base —</option>
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="lowStockThreshold">Low-stock threshold</Label>
+          <Input
+            id="lowStockThreshold"
+            name="lowStockThreshold"
+            type="number"
+            step="0.0001"
+            min="0"
+            defaultValue={defaults?.lowStockThreshold ?? ""}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="reorderLevel">Reorder level</Label>
+          <Input
+            id="reorderLevel"
+            name="reorderLevel"
+            type="number"
+            step="0.0001"
+            min="0"
+            defaultValue={defaults?.reorderLevel ?? ""}
+          />
+        </div>
+      </div>
+      <fieldset className="grid grid-cols-2 gap-2 rounded-md border p-3 text-sm">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="trackable"
+            defaultChecked={defaults ? defaults.trackable : true}
+            className="accent-primary"
+          />
+          Tracked in stock
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="isConsumable"
+            defaultChecked={defaults ? defaults.isConsumable : true}
+            className="accent-primary"
+          />
+          Consumable
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="batchTracked"
+            defaultChecked={defaults ? defaults.batchTracked : false}
+            className="accent-primary"
+          />
+          Batch tracked
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="expiryTracked"
+            defaultChecked={defaults ? defaults.expiryTracked : false}
+            className="accent-primary"
+          />
+          Expiry tracked
+        </label>
+      </fieldset>
+      <div className="space-y-2">
+        <Label htmlFor="storageNotes">Storage notes (optional)</Label>
+        <Input id="storageNotes" name="storageNotes" defaultValue={defaults?.storageNotes ?? ""} />
+      </div>
+    </>
+  );
+}
+
+function SubmitButton({ idle, busy }: { idle: string; busy: string }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending}>
-      {pending ? "Creating…" : "Create item"}
+      {pending ? busy : idle}
     </Button>
   );
 }
@@ -103,117 +295,84 @@ function CreateItemDialog({
               <AlertDescription>{state.error}</AlertDescription>
             </Alert>
           )}
-          <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
-            <Input id="name" name="name" required />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="itemType">Type</Label>
-              <select
-                id="itemType"
-                name="itemType"
-                className={selectClass}
-                value={itemType}
-                onChange={(e) => setItemType(e.target.value)}
-              >
-                {ITEM_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {TYPE_LABELS[t]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="categoryId">Category</Label>
-              <select id="categoryId" name="categoryId" className={selectClass} defaultValue="">
-                <option value="">— none —</option>
-                {scopedCategories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="baseUnitId">Base unit</Label>
-              <select
-                id="baseUnitId"
-                name="baseUnitId"
-                className={selectClass}
-                required
-                defaultValue=""
-              >
-                <option value="" disabled>
-                  Choose…
-                </option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="purchaseUnitId">Purchase unit (optional)</Label>
-              <select
-                id="purchaseUnitId"
-                name="purchaseUnitId"
-                className={selectClass}
-                defaultValue=""
-              >
-                <option value="">— same as base —</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lowStockThreshold">Low-stock threshold</Label>
-              <Input
-                id="lowStockThreshold"
-                name="lowStockThreshold"
-                type="number"
-                step="0.0001"
-                min="0"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="reorderLevel">Reorder level</Label>
-              <Input id="reorderLevel" name="reorderLevel" type="number" step="0.0001" min="0" />
-            </div>
-          </div>
-          <fieldset className="grid grid-cols-2 gap-2 rounded-md border p-3 text-sm">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="trackable" defaultChecked className="accent-primary" />
-              Tracked in stock
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="isConsumable"
-                defaultChecked
-                className="accent-primary"
-              />
-              Consumable
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="batchTracked" className="accent-primary" />
-              Batch tracked
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="expiryTracked" className="accent-primary" />
-              Expiry tracked
-            </label>
-          </fieldset>
-          <div className="space-y-2">
-            <Label htmlFor="storageNotes">Storage notes (optional)</Label>
-            <Input id="storageNotes" name="storageNotes" />
-          </div>
+          <ItemFormFields
+            itemType={itemType}
+            setItemType={setItemType}
+            units={units}
+            scopedCategories={scopedCategories}
+          />
           <div className="flex justify-end">
-            <Submit />
+            <SubmitButton idle="Create item" busy="Creating…" />
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditItemDialog({
+  item,
+  categories,
+  units,
+}: {
+  item: ItemRow;
+  categories: (OptionRow & { itemType: string })[];
+  units: OptionRow[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [itemType, setItemType] = useState<string>(item.itemType);
+  const action = updateItemAction.bind(null, item.id);
+  const [state, formAction] = useActionState<ItemActionState, FormData>(action, {});
+
+  useEffect(() => {
+    if (state.info) {
+      toast.success(state.info);
+      setOpen(false);
+    }
+  }, [state]);
+
+  const scopedCategories = useMemo(
+    () => categories.filter((c) => c.itemType === itemType),
+    [categories, itemType],
+  );
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" aria-label={`Edit ${item.name}`}>
+          <Pencil className="size-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit {item.name}</DialogTitle>
+        </DialogHeader>
+        <form action={formAction} className="space-y-4">
+          {state.error && (
+            <Alert variant="destructive">
+              <AlertDescription>{state.error}</AlertDescription>
+            </Alert>
+          )}
+          <input type="hidden" name="version" value={item.version} />
+          <ItemFormFields
+            itemType={itemType}
+            setItemType={setItemType}
+            units={units}
+            scopedCategories={scopedCategories}
+            defaults={item}
+            lockStructural
+          />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="active"
+              defaultChecked={item.active}
+              className="accent-primary"
+            />
+            Active (uncheck to retire this item)
+          </label>
+          <div className="flex justify-end">
+            <SubmitButton idle="Save changes" busy="Saving…" />
           </div>
         </form>
       </DialogContent>
@@ -255,6 +414,7 @@ export function ItemsClient({
                 <TableHead>Category</TableHead>
                 <TableHead>Base unit</TableHead>
                 <TableHead>Status</TableHead>
+                {canWrite && <TableHead className="text-right">Edit</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -274,6 +434,11 @@ export function ItemsClient({
                       {it.active ? "active" : "inactive"}
                     </Badge>
                   </TableCell>
+                  {canWrite && (
+                    <TableCell className="text-right">
+                      <EditItemDialog item={it} categories={categories} units={units} />
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
