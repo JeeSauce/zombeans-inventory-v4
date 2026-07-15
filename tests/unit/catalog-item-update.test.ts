@@ -37,7 +37,7 @@ describe("buildItemUpdatePayload", () => {
   });
 
   it("never includes locked columns even though input carries them", () => {
-    const p = buildItemUpdatePayload(base, { active: false, actorId: "a" }) as Record<
+    const p = buildItemUpdatePayload(base, { active: false, actorId: "a" }) as unknown as Record<
       string,
       unknown
     >;
