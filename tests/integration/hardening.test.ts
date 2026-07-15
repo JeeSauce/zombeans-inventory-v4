@@ -71,6 +71,33 @@ describe("Phase 11 database security contract", () => {
     expect(result.rows.filter((row) => row.anon_execute)).toEqual([]);
   });
 
+  it("pins search_path on the invoker-rights trigger functions (0038)", async () => {
+    const result = await admin.query<{
+      function_name: string;
+      search_path_pinned: boolean;
+    }>(
+      `select p.proname function_name,
+         exists (
+           select 1 from unnest(coalesce(p.proconfig, '{}'::text[])) setting
+           where setting like 'search_path=%'
+         ) search_path_pinned
+       from pg_proc p
+       join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and not p.prosecdef
+         and p.proname in (
+           'tg_set_updated_at',
+           'tg_set_updated_at_only',
+           'tg_protect_super_admin',
+           'tg_protect_super_admin_role'
+         )
+       order by 1`,
+    );
+
+    expect(result.rows).toHaveLength(4);
+    expect(result.rows.filter((row) => !row.search_path_pinned)).toEqual([]);
+  });
+
   it("binds identity probes to the JWT actor", async () => {
     const own = await asUser(acting, users.super, async (client) => {
       const result = await client.query<{ admin: boolean; branch: boolean; cost: boolean }>(

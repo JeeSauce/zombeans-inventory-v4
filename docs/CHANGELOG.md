@@ -5,6 +5,15 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Security — Trigger search_path hardening — 2026-07-15
+
+- Added migration `0038` pinning `search_path = ''` on the four invoker-rights trigger functions
+  (`tg_set_updated_at`, `tg_set_updated_at_only`, `tg_protect_super_admin`,
+  `tg_protect_super_admin_role`). These were outside migration `0036`'s SECURITY DEFINER hardening
+  and were the last `function_search_path_mutable` advisor WARNs; behaviour is unchanged since every
+  reference was already schema-qualified or a `pg_catalog` builtin. Extended the hardening test to
+  assert these four functions pin their search path.
+
 ### Catalog — Inventory item editing — 2026-07-15
 
 - Inventory items can now be edited (name, category, purchase unit, thresholds, tracking flags,
