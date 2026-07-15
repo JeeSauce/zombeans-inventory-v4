@@ -6,7 +6,7 @@ const EMAIL_LIKE = "phase8+%@zombeans.test";
 const DEDUP_LIKE = "phase8:%";
 let admin: Client;
 let acting: Client;
-const users = { super: "", manager: "", production: "", inventory: "" };
+const users = { super: "", manager: "", production: "", inventory: "", otherInventory: "" };
 const fixture = { main: "", popup: "", unit: "", category: "", item: "" };
 
 async function runAsUserAndCommit<T>(
@@ -34,7 +34,12 @@ async function cleanupPhase8(): Promise<void> {
   await admin.query("alter table public.popup_event_commands disable trigger user");
   await admin.query("alter table public.popup_event_movements disable trigger user");
   try {
-    await admin.query(`delete from public.notifications where dedup_key like $1`, [DEDUP_LIKE]);
+    await admin.query(
+      `delete from public.notifications
+       where dedup_key like $1
+          or (source_type = 'negative_inventory' and entity_reference = 'P8-GATE-ITEM')`,
+      [DEDUP_LIKE],
+    );
     await admin.query(`delete from public.popup_event_commands where popup_event_id in (
       select pe.id from public.popup_event_sessions pe
       join public.calendar_events ce on ce.id = pe.calendar_event_id where ce.title like 'P8 %'
@@ -64,11 +69,15 @@ async function cleanupPhase8(): Promise<void> {
     ) and (action like 'calendar.%' or action like 'popup.%')`,
       [EMAIL_LIKE],
     );
+    await admin.query(`delete from public.inventory_alerts where item_id in (
+      select id from public.inventory_items where sku = 'P8-GATE-ITEM'
+    )`);
     await admin.query(`delete from public.inventory_balances where item_id in (
       select id from public.inventory_items where sku = 'P8-GATE-ITEM'
     )`);
     await admin.query(`delete from public.inventory_items where sku = 'P8-GATE-ITEM'`);
     await admin.query(`delete from public.categories where name = 'P8 Gate Category'`);
+    await admin.query(`delete from public.stock_transactions where reference like 'P8-FANOUT-%'`);
   } finally {
     await admin.query("alter table public.notification_events enable trigger user");
     await admin.query("alter table public.calendar_event_commands enable trigger user");
@@ -116,10 +125,14 @@ beforeAll(async () => {
   users.inventory = await createUser(admin, "phase8+inventory@zombeans.test", {
     fullName: "P8 Inventory",
   });
+  users.otherInventory = await createUser(admin, "phase8+other-inventory@zombeans.test", {
+    fullName: "P8 Other Inventory",
+  });
   await assignRole(admin, users.super, "super_admin");
   await assignRole(admin, users.manager, "branch_manager");
   await assignRole(admin, users.production, "production");
   await assignRole(admin, users.inventory, "inventory");
+  await assignRole(admin, users.otherInventory, "inventory");
   const branches = await admin.query<{ id: string; key: string }>(
     `select id, key from public.branches where key in ('commissary', 'popup')`,
   );
@@ -127,6 +140,7 @@ beforeAll(async () => {
   fixture.popup = branches.rows.find((branch) => branch.key === "popup")!.id;
   await assignBranch(admin, users.production, fixture.main);
   await assignBranch(admin, users.inventory, fixture.main);
+  await assignBranch(admin, users.otherInventory, fixture.popup);
   fixture.unit = (
     await admin.query<{ id: string }>(`select id from public.units where code = 'pc'`)
   ).rows[0]!.id;
@@ -155,6 +169,90 @@ afterAll(async () => {
 });
 
 describe("Phase 8 notification gate", () => {
+  it("fans out branch-targeted Critical alerts without reopening cross-user probes", async () => {
+    const transaction = await admin.query<{ id: string }>(
+      `insert into public.stock_transactions (
+         reference, type, status, dest_branch_id, reason, created_by, approved_by,
+         confirmed_at, idempotency_key, correlation_id
+       ) values ($1, 'stock_in', 'posted', $2, 'Phase 11 notification fan-out regression',
+         $3, $3, now(), $4, gen_random_uuid()) returning id`,
+      [`P8-FANOUT-${crypto.randomUUID()}`, fixture.main, users.inventory, crypto.randomUUID()],
+    );
+
+    await admin.query(
+      "alter table public.inventory_alerts disable trigger inventory_alert_notification",
+    );
+    try {
+      await admin.query(
+        `insert into public.inventory_alerts (
+           item_id, branch_id, qty_on_hand, cause_txn_id, reason, created_by
+         ) values ($1, $2, -1, $3, 'Phase 11 notification fan-out regression', $4)`,
+        [fixture.item, fixture.main, transaction.rows[0]!.id, users.inventory],
+      );
+    } finally {
+      await admin.query(
+        "alter table public.inventory_alerts enable trigger inventory_alert_notification",
+      );
+    }
+
+    await runAsUserAndCommit(users.inventory, (client) =>
+      client.query(`select public.refresh_operational_notifications()`),
+    );
+
+    const notification = await admin.query<{ id: string; severity: string }>(
+      `select id, severity::text
+       from public.notifications
+       where dedup_key = 'negative-inventory:' || $1::text || ':' || $2::text
+         and status = 'active'`,
+      [fixture.main, fixture.item],
+    );
+    expect(notification.rows).toHaveLength(1);
+    expect(notification.rows[0]!.severity).toBe("critical");
+
+    const notificationId = notification.rows[0]!.id;
+    const expectedRecipients = [users.super, users.manager, users.production, users.inventory];
+    const receipts = await admin.query<{ user_id: string }>(
+      `select user_id
+       from public.notification_receipts
+       where notification_id = $1 and user_id = any($2::uuid[])
+       order by user_id`,
+      [notificationId, [...expectedRecipients, users.otherInventory]],
+    );
+    expect(receipts.rows.map((row) => row.user_id)).toEqual([...expectedRecipients].sort());
+
+    const emailDeliveries = await admin.query<{ recipient_user_id: string; count: number }>(
+      `select recipient_user_id, count(*)::int count
+       from public.notification_deliveries
+       where notification_id = $1
+         and channel = 'email'
+         and recipient_user_id = any($2::uuid[])
+       group by recipient_user_id
+       order by recipient_user_id`,
+      [notificationId, [...expectedRecipients, users.otherInventory]],
+    );
+    expect(emailDeliveries.rows).toEqual(
+      [...expectedRecipients].sort().map((recipient_user_id) => ({ recipient_user_id, count: 1 })),
+    );
+
+    const raisedEvent = await admin.query<{ actor_id: string }>(
+      `select actor_id
+       from public.notification_events
+       where notification_id = $1 and event_type = 'raised'`,
+      [notificationId],
+    );
+    expect(raisedEvent.rows[0]!.actor_id).toBe(users.inventory);
+
+    const publicProbes = await asUser(acting, users.inventory, async (client) => {
+      const result = await client.query<{ branch: boolean; notification: boolean }>(
+        `select public.has_branch_access($1, $2) branch,
+                public.can_view_notification($1, null, $2, null) notification`,
+        [users.super, fixture.main],
+      );
+      return result.rows[0]!;
+    });
+    expect(publicProbes).toEqual({ branch: false, notification: false });
+  });
+
   it("deduplicates one active condition and one email delivery per recipient", async () => {
     const key = `phase8:dedup:${crypto.randomUUID()}`;
     const first = await raise("negative_inventory", key);

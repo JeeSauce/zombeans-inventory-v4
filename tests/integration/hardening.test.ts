@@ -175,6 +175,20 @@ describe("Phase 11 database security contract", () => {
     expect(result.rows.filter((row) => row.can_execute)).toEqual([]);
   });
 
+  it("keeps the cross-user notification branch predicate owner-internal", async () => {
+    const result = await admin.query<{ role_name: string; can_execute: boolean }>(
+      `select role_name,
+              has_function_privilege(
+                role_name,
+                'public._branch_scope_internal(uuid,uuid)'::regprocedure,
+                'EXECUTE'
+              ) can_execute
+       from unnest(array['authenticated', 'service_role', 'anon']) role_name
+       order by role_name`,
+    );
+    expect(result.rows.filter((row) => row.can_execute)).toEqual([]);
+  });
+
   it("gates batch costing at the database boundary", async () => {
     await expect(
       asUser(acting, users.manager, (client) =>
