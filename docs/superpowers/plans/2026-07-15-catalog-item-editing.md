@@ -23,10 +23,12 @@
 ### Task 1: Pure update-payload builder
 
 **Files:**
+
 - Create: `lib/catalog/item-update.ts`
 - Test: `tests/unit/catalog-item-update.test.ts`
 
 **Interfaces:**
+
 - Consumes: `InventoryItemInput` from `@/lib/validation/catalog`.
 - Produces: `buildItemUpdatePayload(input: InventoryItemInput, opts: { active: boolean; actorId: string }): ItemUpdatePayload` and the `ItemUpdatePayload` interface (snake_case DB columns; excludes `item_type` and `base_unit_id`).
 
@@ -73,7 +75,10 @@ describe("buildItemUpdatePayload", () => {
   });
 
   it("never includes locked columns even though input carries them", () => {
-    const p = buildItemUpdatePayload(base, { active: false, actorId: "a" }) as Record<string, unknown>;
+    const p = buildItemUpdatePayload(base, { active: false, actorId: "a" }) as Record<
+      string,
+      unknown
+    >;
     expect("item_type" in p).toBe(false);
     expect("base_unit_id" in p).toBe(false);
     expect(p.active).toBe(false);
@@ -81,7 +86,14 @@ describe("buildItemUpdatePayload", () => {
 
   it("normalizes nullish optionals to null", () => {
     const p = buildItemUpdatePayload(
-      { ...base, categoryId: null, purchaseUnitId: null, lowStockThreshold: null, reorderLevel: null, storageNotes: null },
+      {
+        ...base,
+        categoryId: null,
+        purchaseUnitId: null,
+        lowStockThreshold: null,
+        reorderLevel: null,
+        storageNotes: null,
+      },
       { active: true, actorId: "a" },
     );
     expect(p.category_id).toBeNull();
@@ -162,9 +174,11 @@ git commit -m "feat(catalog): pure inventory-item update payload builder"
 ### Task 2: Integration test — DB update contract (RLS + version guard)
 
 **Files:**
+
 - Create: `tests/integration/catalog-item-update.test.ts`
 
 **Interfaces:**
+
 - Consumes: `connect`, `createUser`, `assignRole`, `asUser`, `cleanupUsers` from `./helpers/db`.
 - Produces: nothing consumed by later tasks; locks in the DB behavior `updateItemAction` relies on.
 
@@ -267,9 +281,11 @@ git commit -m "test(catalog): lock in inventory_items update RLS + version contr
 ### Task 3: `updateItemAction` server action
 
 **Files:**
+
 - Modify: `app/(app)/catalog/items/actions.ts`
 
 **Interfaces:**
+
 - Consumes: `buildItemUpdatePayload` (Task 1); `requirePermission` from `@/lib/permissions`; `writeAudit` from `@/lib/audit`; `createClient` from `@/lib/supabase/server`; `inventoryItemSchema` from `@/lib/validation/catalog`.
 - Produces: `updateItemAction(itemId: string, prev: ItemActionState, formData: FormData): Promise<ItemActionState>` — bound with the item id via `.bind(null, itemId)` in the client.
 
@@ -308,7 +324,9 @@ export async function updateItemAction(
   const supabase = await createClient();
   const { data: before } = await supabase
     .from("inventory_items")
-    .select("name, category_id, purchase_unit_id, low_stock_threshold, reorder_level, trackable, batch_tracked, expiry_tracked, is_consumable, storage_notes, active")
+    .select(
+      "name, category_id, purchase_unit_id, low_stock_threshold, reorder_level, trackable, batch_tracked, expiry_tracked, is_consumable, storage_notes, active",
+    )
     .eq("id", itemId)
     .single();
 
@@ -358,10 +376,12 @@ git commit -m "feat(catalog): updateItemAction with version guard and locked fie
 ### Task 4: Edit UI — shared form fields, edit dialog, active toggle
 
 **Files:**
+
 - Modify: `app/(app)/catalog/items/page.tsx` (extend row projection with editable fields + `version`)
 - Modify: `components/catalog/items-client.tsx` (extract shared fields; add Edit button + dialog)
 
 **Interfaces:**
+
 - Consumes: `updateItemAction` (Task 3).
 - Produces: `ItemRow` extended with `categoryId`, `purchaseUnitId`, `baseUnitId`, `itemType` label source, `lowStockThreshold`, `reorderLevel`, `trackable`, `batchTracked`, `expiryTracked`, `isConsumable`, `storageNotes`, `version`.
 
@@ -371,7 +391,13 @@ git commit -m "feat(catalog): updateItemAction with version guard and locked fie
 
 ```tsx
 function ItemFormFields({
-  itemType, setItemType, categories, units, scopedCategories, defaults, lockStructural,
+  itemType,
+  setItemType,
+  categories,
+  units,
+  scopedCategories,
+  defaults,
+  lockStructural,
 }: {
   itemType: string;
   setItemType: (v: string) => void;
@@ -395,7 +421,11 @@ function ItemFormFields({
 - [ ] **Step 3: Add the edit dialog + row button**
 
 ```tsx
-function EditItemDialog({ item, categories, units }: {
+function EditItemDialog({
+  item,
+  categories,
+  units,
+}: {
   item: ItemRow;
   categories: (OptionRow & { itemType: string })[];
   units: OptionRow[];
@@ -405,7 +435,10 @@ function EditItemDialog({ item, categories, units }: {
   const action = updateItemAction.bind(null, item.id);
   const [state, formAction] = useActionState<ItemActionState, FormData>(action, {});
   useEffect(() => {
-    if (state.info) { toast.success(state.info); setOpen(false); }
+    if (state.info) {
+      toast.success(state.info);
+      setOpen(false);
+    }
   }, [state]);
   const scopedCategories = useMemo(
     () => categories.filter((c) => c.itemType === itemType),
@@ -419,22 +452,37 @@ function EditItemDialog({ item, categories, units }: {
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Edit {item.name}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Edit {item.name}</DialogTitle>
+        </DialogHeader>
         <form action={formAction} className="space-y-4">
           {state.error && (
-            <Alert variant="destructive"><AlertDescription>{state.error}</AlertDescription></Alert>
+            <Alert variant="destructive">
+              <AlertDescription>{state.error}</AlertDescription>
+            </Alert>
           )}
           <input type="hidden" name="version" value={item.version} />
           <ItemFormFields
-            itemType={itemType} setItemType={setItemType}
-            categories={categories} units={units} scopedCategories={scopedCategories}
-            defaults={item} lockStructural
+            itemType={itemType}
+            setItemType={setItemType}
+            categories={categories}
+            units={units}
+            scopedCategories={scopedCategories}
+            defaults={item}
+            lockStructural
           />
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="active" defaultChecked={item.active} className="accent-primary" />
+            <input
+              type="checkbox"
+              name="active"
+              defaultChecked={item.active}
+              className="accent-primary"
+            />
             Active (uncheck to retire this item)
           </label>
-          <div className="flex justify-end"><EditSubmit /></div>
+          <div className="flex justify-end">
+            <EditSubmit />
+          </div>
         </form>
       </DialogContent>
     </Dialog>
@@ -443,7 +491,11 @@ function EditItemDialog({ item, categories, units }: {
 
 function EditSubmit() {
   const { pending } = useFormStatus();
-  return <Button type="submit" disabled={pending}>{pending ? "Saving…" : "Save changes"}</Button>;
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending ? "Saving…" : "Save changes"}
+    </Button>
+  );
 }
 ```
 
@@ -467,10 +519,12 @@ git commit -m "feat(catalog): edit dialog with locked structural fields and acti
 ### Task 5: E2E — edit and deactivate as Super Admin, plus changelog
 
 **Files:**
+
 - Modify: `tests/e2e/catalog.spec.ts`
 - Modify: `docs/CHANGELOG.md`
 
 **Interfaces:**
+
 - Consumes: the running app + seeded DB. Super Admin needs the step-up bypass (email code isn't automatable), same technique as `tests/e2e/accessibility.spec.ts` (`completeLocalSuperAdminStepUp`: log in, then set the `zb_stepup` cookie computed via HMAC-SHA256 over `stepup:<userId>` keyed by `STEPUP_CODE_PEPPER`).
 
 - [ ] **Step 1: Write the failing e2e** — append to `tests/e2e/catalog.spec.ts`:
@@ -479,7 +533,8 @@ git commit -m "feat(catalog): edit dialog with locked structural fields and acti
 import { createHmac } from "node:crypto";
 import { Client } from "pg";
 
-const DB_URL = process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+const DB_URL =
+  process.env.SUPABASE_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 const STEPUP_PEPPER = process.env.STEPUP_CODE_PEPPER ?? "local-dev-stepup-pepper-change-me";
 
 async function loginSuperAdmin(page: Page) {
@@ -494,10 +549,14 @@ async function loginSuperAdmin(page: Page) {
     const { rows } = await db.query<{ id: string }>(
       `select id from auth.users where email = 'superadmin@zombeans.dev'`,
     );
-    const marker = createHmac("sha256", STEPUP_PEPPER).update(`stepup:${rows[0]!.id}`).digest("hex");
-    await page.context().addCookies([
-      { name: "zb_stepup", value: marker, url: new URL(page.url()).origin, httpOnly: true },
-    ]);
+    const marker = createHmac("sha256", STEPUP_PEPPER)
+      .update(`stepup:${rows[0]!.id}`)
+      .digest("hex");
+    await page
+      .context()
+      .addCookies([
+        { name: "zb_stepup", value: marker, url: new URL(page.url()).origin, httpOnly: true },
+      ]);
   } finally {
     await db.end();
   }
