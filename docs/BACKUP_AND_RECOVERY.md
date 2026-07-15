@@ -120,6 +120,11 @@ custom-format `pg_dump` above — no password is handled in plaintext (linked cr
 - **Backup:** run `scripts/backup-prod.sh` (guards that the CLI is linked to prod). It writes four
   gitignored files to `backups/`: roles, public schema, public data (COPY), and `auth` data. Copy
   them to encrypted off-site storage.
+- **Automation (operator machine):** `scripts/backup-prod-cron.sh` wraps the backup for Windows Task
+  Scheduler — it fixes up `PATH`, aborts with a clear log line if Docker isn't running, appends every
+  run to `backups/backup.log`, and prunes local dumps older than 30 days. Registered as the daily
+  `ZombeansProdBackup` task (09:00 Asia/Manila, runs when logged on, catches up a missed slot). Docker
+  Desktop must be running at that time. This does not replace the off-site encrypted copy.
 - **Restore target:** a **fresh Supabase project** (it provisions the `auth`/`storage`/`vault`/
   `supabase_migrations` infrastructure the logical dump omits). Load order: roles → schema → public
   data → auth data, with `SET session_replication_role = replica;` during data load to disable FKs/
