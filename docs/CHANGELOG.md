@@ -5,6 +5,13 @@ Format loosely follows Keep a Changelog. Dates are Asia/Manila.
 
 ## [Unreleased]
 
+### Catalog — Inventory item editing — 2026-07-15
+
+- Inventory items can now be edited (name, category, purchase unit, thresholds, tracking flags,
+  storage notes) and activated/deactivated by `catalog.item.write` holders. Item type and base unit
+  remain locked after creation and are ignored server-side even if submitted. Concurrent edits are
+  guarded by the row `version`, and each edit writes a before/after audit entry. No schema changes.
+
 ### Phase 11 — Hardening & Deployment — 2026-07-14
 
 Security
