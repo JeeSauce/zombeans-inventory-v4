@@ -34,6 +34,19 @@ async function cleanupPhase8(): Promise<void> {
   await admin.query("alter table public.popup_event_commands disable trigger user");
   await admin.query("alter table public.popup_event_movements disable trigger user");
   try {
+    // refresh_operational_notifications can raise other time-gated conditions (for example,
+    // overdue recounts after 10:00 Asia/Manila). Remove every notification raised by a Phase 8
+    // test actor so deleting those users cannot issue an append-only actor_id FK update.
+    await admin.query(
+      `delete from public.notifications
+       where id in (
+         select ne.notification_id
+         from public.notification_events ne
+         join auth.users u on u.id = ne.actor_id
+         where u.email like $1
+       )`,
+      [EMAIL_LIKE],
+    );
     await admin.query(
       `delete from public.notifications
        where dedup_key like $1
