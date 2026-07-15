@@ -17,6 +17,10 @@ Security
   signed evidence inventory in `SECURITY_REVIEW.md`.
 - Implemented server-only Resend email delivery with production console rejection, idempotency
   headers, sanitized errors, and unit coverage. No provider key or hosted setting was added.
+- Added migration `0037` after the JWT-bound public branch helper was found to suppress legitimate
+  cross-user notification fan-out. The replacement predicate is owner-internal, preserves the
+  fail-closed Production/Inventory rules, and restores branch-targeted in-app/Critical email
+  delivery without reopening a browser or service-role identity probe.
 
 Performance and quality
 
@@ -39,7 +43,7 @@ Deployment readiness
 Tests
 
 - Added explicit evidence mapping for all 24 critical scenarios plus deployment/email/accessibility
-  gates. Final evidence includes 77 unit tests, 99 real-Postgres integration tests, 84 passing E2E
+  gates. Final evidence includes 77 unit tests, 101 real-Postgres integration tests, 84 passing E2E
   tests with 8 intentional project skips, a clean recovery drill, bundle scanning, and zero
   high/critical production advisories. Two moderate build-time Next/PostCSS findings are documented
   as an accepted bounded residual.

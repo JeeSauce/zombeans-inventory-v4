@@ -1,6 +1,6 @@
 # Phase 11 Report — Hardening & Deployment
 
-Date: 2026-07-14 (Asia/Manila)
+Date: 2026-07-14; regression follow-up 2026-07-15 (Asia/Manila)
 Branch: `codex/phase-11-hardening-deployment`
 Base: `main` at `e055c67`
 
@@ -20,7 +20,8 @@ secrets, or promote a preview/production deployment. Those remain checked operat
 
 ### Security and RLS
 
-- Added hardening migration `0036_phase11_hardening.sql`.
+- Added hardening migrations `0036_phase11_hardening.sql` and
+  `0037_phase11_notification_fanout.sql`.
 - Removed ambient `PUBLIC`/anonymous function execution and pinned safe future defaults.
 - Bound permission, Super Admin, and branch probes to the JWT actor.
 - Replaced incomplete stock, ledger, and production policies with branch-aware policies.
@@ -29,7 +30,10 @@ secrets, or promote a preview/production deployment. Those remain checked operat
 - Protected browser reference generators and removed authenticated access to internal generators.
 - Added a complete public-business-table × role × SELECT/INSERT/UPDATE/DELETE contract, real DML
   denial, anonymous denial, and two-branch bypass tests.
-- Audited and classified all 103 `SECURITY DEFINER` functions in `SECURITY_REVIEW.md`.
+- Restored branch-targeted notification fan-out through an owner-only predicate after the public
+  JWT-bound branch helper was found to suppress eligible cross-user recipients. Public/RLS probes
+  remain JWT-bound, and unassigned operational users still fail closed.
+- Audited and classified all 104 `SECURITY DEFINER` functions in `SECURITY_REVIEW.md`.
 
 ### Performance
 
@@ -62,12 +66,13 @@ secrets, or promote a preview/production deployment. Those remain checked operat
 - Added production-safe server-only Resend delivery; production console delivery fails closed.
 - Rebuilt `.env.example` with safe placeholders, descriptions, and runtime/test scope warnings.
 - Rewrote `DEPLOYMENT.md` with the Zombeans team ID, no-project status, environment matrix,
-  migrations `0001`–`0036`+, seed/bootstrap/branch assignment, smoke, monitoring, and rollback.
+  migrations `0001`–`0037`+, seed/bootstrap/branch assignment, smoke, monitoring, and rollback.
 - Expanded CI with local Supabase integration/RLS and Chromium/Pixel 7 E2E jobs.
 
 ## Primary files and migration
 
 - `supabase/migrations/0036_phase11_hardening.sql`
+- `supabase/migrations/0037_phase11_notification_fanout.sql`
 - `tests/integration/hardening.test.ts`
 - `tests/integration/rls-penetration.test.ts`
 - `tests/e2e/accessibility.spec.ts`
@@ -78,24 +83,25 @@ secrets, or promote a preview/production deployment. Those remain checked operat
 - `vercel.json`
 
 Migration `0036` is hardening-only: function grants/identity checks, RLS tightening, two bounded
-batch RPCs, and indexes. It adds no business entity or workflow.
+batch RPCs, and indexes. Migration `0037` separates private notification recipient expansion from
+public JWT-bound branch probes. Neither adds a business entity or workflow.
 
 ## Verification evidence
 
-| Gate                                      | Result | Evidence                                                                                            |
-| ----------------------------------------- | ------ | --------------------------------------------------------------------------------------------------- |
-| `npm run format`                          | Pass   | Final formatter run completed.                                                                      |
-| `npm run format:check`                    | Pass   | All matched files use Prettier style.                                                               |
-| `npm run lint`                            | Pass   | ESLint completed without findings.                                                                  |
-| `npm run typecheck`                       | Pass   | Strict `tsc --noEmit` completed.                                                                    |
-| `npm run test`                            | Pass   | 13 files, 77 unit tests.                                                                            |
-| `npm run build`                           | Pass   | Next 15.5.20 production build; 33 static-generation entries.                                        |
-| `npm run scan:bundle`                     | Pass   | Service-role marker absent from 115 client bundle files.                                            |
-| Clean `db:reset` + `test:integration`     | Pass   | Migrations through `0036`; 12 files, 99 real-Postgres tests.                                        |
-| `npm run test:recovery`                   | Pass   | 5 targeted checks passed; 2 unrelated cases intentionally skipped by the focused command.           |
-| `npm run seed:dev`                        | Pass   | Local accounts and explicit operational branch assignments created.                                 |
-| `npm run test:e2e`                        | Pass   | Production build/start; Chromium and Pixel 7; 84 passed and 8 intentional project skips (92 total). |
-| `npm audit --omit=dev --audit-level=high` | Pass   | Zero high/critical production findings; two moderate nested PostCSS findings recorded below.        |
+| Gate                                      | Result | Evidence                                                                                                          |
+| ----------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `npm run format`                          | Pass   | Final formatter run completed.                                                                                    |
+| `npm run format:check`                    | Pass   | All matched files use Prettier style.                                                                             |
+| `npm run lint`                            | Pass   | ESLint completed without findings.                                                                                |
+| `npm run typecheck`                       | Pass   | Strict `tsc --noEmit` completed.                                                                                  |
+| `npm run test`                            | Pass   | 13 files, 77 unit tests.                                                                                          |
+| `npm run build`                           | Pass   | Next 15.5.20 production build; 33 static-generation entries.                                                      |
+| `npm run scan:bundle`                     | Pass   | Service-role marker absent from 115 client bundle files.                                                          |
+| Clean `db:reset` + `test:integration`     | Pass   | Migrations through `0037`; 12 files, 101 real-Postgres tests, including branch fan-out and private-helper grants. |
+| `npm run test:recovery`                   | Pass   | 5 targeted checks passed; 2 unrelated cases intentionally skipped by the focused command.                         |
+| `npm run seed:dev`                        | Pass   | Local accounts and explicit operational branch assignments created.                                               |
+| `npm run test:e2e`                        | Pass   | Production build/start; Chromium and Pixel 7; 84 passed and 8 intentional project skips (92 total).               |
+| `npm audit --omit=dev --audit-level=high` | Pass   | Zero high/critical production findings; two moderate nested PostCSS findings recorded below.                      |
 
 ## Critical scenarios
 
@@ -136,6 +142,7 @@ and [Next.js issue #93234](https://github.com/vercel/next.js/issues/93234).
 - `82c150d` — `fix(email): add production Resend transport`
 - `263bf1f` — `fix(a11y): close dark contrast and browser gaps`
 - `30446af` — `chore(deploy): pin runtime and harden CI`
+- `e293961` — `fix(security): restore branch notification fan-out`
 
 ## Exact next phase
 

@@ -1,7 +1,7 @@
 # Phase 11 Security Review
 
-Date: 2026-07-14 (Asia/Manila)
-Scope: repository at `codex/phase-11-hardening-deployment`, migrations `0001`-`0036`
+Date: 2026-07-14; regression follow-up 2026-07-15 (Asia/Manila)
+Scope: repository at `codex/phase-11-hardening-deployment`, migrations `0001`-`0037`
 Method: source review, clean local migration replay, effective Postgres grant inventory, real-role
 integration tests, browser bundle scan, unit/build checks, and Playwright accessibility/security
 smoke coverage.
@@ -29,29 +29,30 @@ are outside this code-only phase and are not represented as reviewed.
 
 ## Findings resolved in Phase 11
 
-| Severity | Finding                                                                                                                                                  | Resolution                                                                                                                                                                                               | Evidence                                                                                                                                                       |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| High     | Stock balances, lots, ledger headers/lines, and production orders had permission checks but incomplete branch predicates.                                | Migration `0036` replaces the policies with `has_branch_access(auth.uid(), branch_id)` boundaries and applies branch scope to limited production updates.                                                | `rls-penetration.test.ts` creates two real branches and proves non-Super roles see only the assigned branch while Super Admin retains cross-branch visibility. |
-| High     | The legacy “no branch assignments means global” fallback applied to Production and Inventory roles, not only the intended global roles.                  | Unassigned Production/Inventory users now fail closed; Super Admin remains global and the documented MVP Branch Manager fallback remains. The local seed creates explicit operational assignments.       | `hardening.test.ts` probes all three unassigned role outcomes; two-branch penetration tests cover assigned users.                                              |
-| High     | Postgres' default function grant left an ambient `PUBLIC` execution surface; several internal reference generators were callable by authenticated users. | Revoke `PUBLIC`/`anon` execute for all existing/future public functions and revoke authenticated access to internal generators.                                                                          | Dynamic definer/grant test plus effective catalog inventory below.                                                                                             |
-| Medium   | Identity helpers accepted an arbitrary user ID, allowing cross-user role/permission/branch probes.                                                       | `has_permission`, `is_super_admin`, and `has_branch_access` now require the supplied ID to equal `auth.uid()`.                                                                                           | Cross-user probes return false in `hardening.test.ts`.                                                                                                         |
-| Medium   | Costing issued one RPC per recipe and branch pricing performed one read/write loop per branch.                                                           | One protected cost batch RPC and one atomic price-form RPC replace both fan-outs.                                                                                                                        | Integration tests validate permission, atomic rollback, insert/update/delete, and malformed-entry isolation.                                                   |
-| High     | Production email configuration advertised Resend but threw at runtime; `console` could expose step-up codes if selected in production.                   | Server-only Resend delivery is implemented with sanitized errors and idempotency headers; console fails closed in production except an explicit loopback-Supabase E2E guard that hosted URLs cannot use. | `email.test.ts`; no real provider key used.                                                                                                                    |
+| Severity | Finding                                                                                                                                                                                   | Resolution                                                                                                                                                                                               | Evidence                                                                                                                                                                                |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| High     | Stock balances, lots, ledger headers/lines, and production orders had permission checks but incomplete branch predicates.                                                                 | Migration `0036` replaces the policies with `has_branch_access(auth.uid(), branch_id)` boundaries and applies branch scope to limited production updates.                                                | `rls-penetration.test.ts` creates two real branches and proves non-Super roles see only the assigned branch while Super Admin retains cross-branch visibility.                          |
+| High     | The legacy “no branch assignments means global” fallback applied to Production and Inventory roles, not only the intended global roles.                                                   | Unassigned Production/Inventory users now fail closed; Super Admin remains global and the documented MVP Branch Manager fallback remains. The local seed creates explicit operational assignments.       | `hardening.test.ts` probes all three unassigned role outcomes; two-branch penetration tests cover assigned users.                                                                       |
+| High     | Postgres' default function grant left an ambient `PUBLIC` execution surface; several internal reference generators were callable by authenticated users.                                  | Revoke `PUBLIC`/`anon` execute for all existing/future public functions and revoke authenticated access to internal generators.                                                                          | Dynamic definer/grant test plus effective catalog inventory below.                                                                                                                      |
+| Medium   | Identity helpers accepted an arbitrary user ID, allowing cross-user role/permission/branch probes.                                                                                        | `has_permission`, `is_super_admin`, and `has_branch_access` now require the supplied ID to equal `auth.uid()`.                                                                                           | Cross-user probes return false in `hardening.test.ts`.                                                                                                                                  |
+| High     | JWT-binding `has_branch_access` also broke `raise_notification` recipient expansion, so branch-targeted Critical alerts reached only the raising user instead of all eligible recipients. | Migration `0037` separates an owner-only cross-user branch predicate from the public JWT-bound helpers and routes only server-owned fan-out through it.                                                  | `phase8.test.ts` raises from an Inventory JWT, proves same-branch/global receipts plus exactly one Critical email each, excludes another branch, and rechecks public cross-user denial. |
+| Medium   | Costing issued one RPC per recipe and branch pricing performed one read/write loop per branch.                                                                                            | One protected cost batch RPC and one atomic price-form RPC replace both fan-outs.                                                                                                                        | Integration tests validate permission, atomic rollback, insert/update/delete, and malformed-entry isolation.                                                                            |
+| High     | Production email configuration advertised Resend but threw at runtime; `console` could expose step-up codes if selected in production.                                                    | Server-only Resend delivery is implemented with sanitized errors and idempotency headers; console fails closed in production except an explicit loopback-Supabase E2E guard that hosted URLs cannot use. | `email.test.ts`; no real provider key used.                                                                                                                                             |
 
 ## SECURITY DEFINER inventory
 
-The live schema contains **103** `SECURITY DEFINER` functions. The inventory query used
+The live schema contains **104** `SECURITY DEFINER` functions. The inventory query used
 `pg_proc`, `regprocedure`, and effective `has_function_privilege` checks after a clean reset.
 Every signature appears exactly once below.
 
 Global results:
 
-- 103/103 pin `search_path`; the dynamic test fails on any future unpinned definer.
-- 0/103 are executable by `PUBLIC` or `anon`.
+- 104/104 pin `search_path`; the dynamic test fails on any future unpinned definer.
+- 0/104 are executable by `PUBLIC` or `anon`.
 - 74 are authenticated entry points (72 also executable by controlled service jobs; two are
   authenticated identity projections only).
 - 13 are service-only helpers.
-- 16 are owner/internal helpers with no authenticated, service-role, anonymous, or public grant.
+- 17 are owner/internal helpers with no authenticated, service-role, anonymous, or public grant.
 
 ### Authenticated application boundaries (72; service role also permitted)
 
@@ -163,27 +164,30 @@ reference generation, costing, and lifecycle dependency checks. Browser roles ha
 grant. `record_backup_run` validates stable run identity, safe metadata, timing, encryption, and
 idempotent replay.
 
-### Owner/internal-only helpers and triggers (16)
+### Owner/internal-only helpers and triggers (17)
 
-1. `assert_business_day_open(uuid,date)`
-2. `next_calendar_event_reference()`
-3. `next_day_close_event_reference()`
-4. `next_day_close_reference()`
-5. `next_notification_reference()`
-6. `next_offline_submission_reference()`
-7. `next_popup_event_reference()`
-8. `next_pos_import_reference()`
-9. `next_recount_adjustment_reference()`
-10. `next_recount_reference()`
-11. `phase10_apply_offline_recount(uuid,date,uuid,text,jsonb,boolean)`
-12. `phase9_validate_report_filters(date,date,uuid)`
-13. `tg_guard_privileged_profile_fields()`
-14. `tg_guard_stock_transaction_business_day()`
-15. `tg_handle_new_auth_user()`
-16. `tg_inventory_alert_notification()`
+1. `_branch_scope_internal(uuid,uuid)`
+2. `assert_business_day_open(uuid,date)`
+3. `next_calendar_event_reference()`
+4. `next_day_close_event_reference()`
+5. `next_day_close_reference()`
+6. `next_notification_reference()`
+7. `next_offline_submission_reference()`
+8. `next_popup_event_reference()`
+9. `next_pos_import_reference()`
+10. `next_recount_adjustment_reference()`
+11. `next_recount_reference()`
+12. `phase10_apply_offline_recount(uuid,date,uuid,text,jsonb,boolean)`
+13. `phase9_validate_report_filters(date,date,uuid)`
+14. `tg_guard_privileged_profile_fields()`
+15. `tg_guard_stock_transaction_business_day()`
+16. `tg_handle_new_auth_user()`
+17. `tg_inventory_alert_notification()`
 
 They are reachable only from owning functions/triggers; no application/service API role has a
-direct execute path.
+direct execute path. In particular, `_branch_scope_internal` retains the Phase 11 fail-closed
+rules for unassigned Production/Inventory users but is callable only by the owning
+`raise_notification` path, never as a cross-user browser or service-role probe.
 
 ## Service-role-key boundary
 
