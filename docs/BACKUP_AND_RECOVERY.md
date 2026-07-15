@@ -124,7 +124,21 @@ custom-format `pg_dump` above — no password is handled in plaintext (linked cr
   Scheduler — it fixes up `PATH`, aborts with a clear log line if Docker isn't running, appends every
   run to `backups/backup.log`, and prunes local dumps older than 30 days. Registered as the daily
   `ZombeansProdBackup` task (09:00 Asia/Manila, runs when logged on, catches up a missed slot). Docker
-  Desktop must be running at that time. This does not replace the off-site encrypted copy.
+  Desktop must be running at that time.
+- **Off-site (encrypted):** after a successful dump the wrapper bundles the four files into a gzip
+  tarball, encrypts it with AES-256 (openssl, PBKDF2, 200k iterations) and copies only the `.enc`
+  file to `E:\My Drive\Zombeans-Backups\` (Google Drive), retained 90 days. The passphrase lives in
+  `%USERPROFILE%\.zombeans-backup-pass` (ACL-restricted to the operator, outside the repo and Drive)
+  and is also kept in the operator's password manager. **Losing the passphrase makes the off-site
+  copies unrecoverable.** Decrypt with (Git Bash):
+  ```bash
+  openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+    -pass "file:$(cygpath -m ~/.zombeans-backup-pass)" \
+    -in "$(cygpath -m '/e/My Drive/Zombeans-Backups/zombeans-backup-YYYY-MM-DD.tar.gz.enc')" \
+    | tar -xzf -
+  ```
+  Verified 2026-07-16: scheduler-driven run produced the encrypted archive on Drive and a decrypt
+  round-trip restored all four dumps with business data intact.
 - **Restore target:** a **fresh Supabase project** (it provisions the `auth`/`storage`/`vault`/
   `supabase_migrations` infrastructure the logical dump omits). Load order: roles → schema → public
   data → auth data, with `SET session_replication_role = replica;` during data load to disable FKs/
