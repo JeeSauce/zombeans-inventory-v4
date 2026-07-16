@@ -49,14 +49,12 @@ export function UserMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <form action={signOutAction}>
-          <button type="submit" className="w-full">
-            <DropdownMenuItem asChild>
-              <span className="flex cursor-pointer items-center gap-2">
-                <LogOut className="size-4" />
-                Sign out
-              </span>
-            </DropdownMenuItem>
-          </button>
+          <DropdownMenuItem asChild>
+            <button type="submit" className="flex w-full cursor-pointer items-center gap-2">
+              <LogOut className="size-4" />
+              Sign out
+            </button>
+          </DropdownMenuItem>
         </form>
       </DropdownMenuContent>
     </DropdownMenu>
