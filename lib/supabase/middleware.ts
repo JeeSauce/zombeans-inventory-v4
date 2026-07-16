@@ -68,30 +68,33 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     },
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Verify the JWT locally (no Auth-server round trip when the project uses asymmetric
+  // signing keys) and refresh the session cookie. Do NOT insert code between
+  // createServerClient above and this call — doing so can randomly log users out.
+  const { data: claimsData } = await supabase.auth.getClaims();
   const { pathname } = request.nextUrl;
 
-  if (!user) {
+  const userId = claimsData?.claims?.sub;
+  if (!userId) {
     return isPublic(pathname) ? response : redirectTo(request, "/login");
   }
 
+  // Both checks depend only on userId — run them concurrently so the two DB round trips
+  // overlap instead of stacking serially (the edge PoP → database hop is the costly part).
+  const [{ data: profile }, { data: isSuper }] = await Promise.all([
+    supabase.from("profiles").select("status").eq("id", userId).single(),
+    supabase.rpc("is_super_admin", { uid: userId }),
+  ]);
+
   // Force logout of disabled accounts.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("status")
-    .eq("id", user.id)
-    .single();
   if (profile?.status === "disabled") {
     await supabase.auth.signOut();
     return redirectTo(request, "/login", { reason: "disabled" });
   }
 
   // Super Admin step-up gate.
-  const { data: isSuper } = await supabase.rpc("is_super_admin", { uid: user.id });
   if (isSuper) {
-    const verified = await stepUpMarkerValid(user.id, request.cookies.get(STEPUP_COOKIE)?.value);
+    const verified = await stepUpMarkerValid(userId, request.cookies.get(STEPUP_COOKIE)?.value);
     if (!verified && pathname !== "/verify") {
       return redirectTo(request, "/verify");
     }
