@@ -80,6 +80,50 @@ export async function createItemAction(
   return { info: `Created ${it.name} (${data.sku}).` };
 }
 
+/**
+ * Toggle an item's active flag directly from the list — the discoverable, one-click way to
+ * retire/restore an item without opening the edit dialog. Deactivating is a soft retire (never a
+ * delete), so it is safe regardless of stock history. catalog.item.write; version-guarded + audited.
+ */
+export async function setItemActiveAction(
+  itemId: string,
+  active: boolean,
+  version: number,
+  _prev: ItemActionState,
+  _formData: FormData,
+): Promise<ItemActionState> {
+  const { user } = await requirePermission("catalog.item.write");
+  if (!Number.isInteger(version)) return { error: "Missing item version. Reload and try again." };
+
+  const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("inventory_items")
+    .select("name, active")
+    .eq("id", itemId)
+    .single();
+
+  const { data: updated, error } = await supabase
+    .from("inventory_items")
+    .update({ active, updated_by: user.id })
+    .eq("id", itemId)
+    .eq("version", version)
+    .select("id, name")
+    .maybeSingle();
+  if (error) return { error: error.message.replace(/^.*?:\s*/, "") };
+  if (!updated) return { error: "This item was updated elsewhere. Reload and try again." };
+
+  await writeAudit({
+    actorId: user.id,
+    action: "item.updated",
+    entityType: "inventory_item",
+    entityId: itemId,
+    before,
+    after: { active },
+  });
+  revalidatePath("/catalog/items");
+  return { info: active ? `Activated ${updated.name}.` : `Deactivated ${updated.name}.` };
+}
+
 /** Edit an existing item. Locked fields (type, base unit) are never written. catalog.item.write. */
 export async function updateItemAction(
   itemId: string,
