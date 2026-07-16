@@ -3,10 +3,11 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { toast } from "sonner";
-import { Pencil, Plus } from "lucide-react";
+import { Archive, ArchiveRestore, Pencil, Plus } from "lucide-react";
 import {
   createItemAction,
   updateItemAction,
+  setItemActiveAction,
   type ItemActionState,
 } from "@/app/(app)/catalog/items/actions";
 import { ITEM_TYPES } from "@/lib/validation/catalog";
@@ -380,6 +381,41 @@ function EditItemDialog({
   );
 }
 
+function ToggleActiveSubmit({ active }: { active: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <Button
+      type="submit"
+      variant="ghost"
+      size="sm"
+      disabled={pending}
+      aria-label={active ? "Deactivate item" : "Activate item"}
+    >
+      {active ? <Archive className="size-4" /> : <ArchiveRestore className="size-4" />}
+      <span className="ml-1 hidden sm:inline">
+        {pending ? "…" : active ? "Deactivate" : "Activate"}
+      </span>
+    </Button>
+  );
+}
+
+/** One-click retire/restore for an item, driven by the existing `active` flag. */
+function ToggleActiveButton({ item }: { item: ItemRow }) {
+  const action = setItemActiveAction.bind(null, item.id, !item.active, item.version);
+  const [state, formAction] = useActionState<ItemActionState, FormData>(action, {});
+
+  useEffect(() => {
+    if (state.info) toast.success(state.info);
+    if (state.error) toast.error(state.error);
+  }, [state]);
+
+  return (
+    <form action={formAction} className="inline">
+      <ToggleActiveSubmit active={item.active} />
+    </form>
+  );
+}
+
 export function ItemsClient({
   items,
   categories,
@@ -414,7 +450,7 @@ export function ItemsClient({
                 <TableHead>Category</TableHead>
                 <TableHead>Base unit</TableHead>
                 <TableHead>Status</TableHead>
-                {canWrite && <TableHead className="text-right">Edit</TableHead>}
+                {canWrite && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -436,7 +472,10 @@ export function ItemsClient({
                   </TableCell>
                   {canWrite && (
                     <TableCell className="text-right">
-                      <EditItemDialog item={it} categories={categories} units={units} />
+                      <div className="flex items-center justify-end gap-1">
+                        <ToggleActiveButton item={it} />
+                        <EditItemDialog item={it} categories={categories} units={units} />
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
