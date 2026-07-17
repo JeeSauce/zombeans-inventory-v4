@@ -49,7 +49,14 @@ export function UserMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <form action={signOutAction}>
-          <DropdownMenuItem asChild>
+          {/*
+            Radix runs its select handler inside this click and, unless the select event is
+            default-prevented, synchronously closes the menu — unmounting this form. A form
+            detached from the document cannot submit, so the action never ran. Preventing the
+            select keeps the form mounted so the button's submit fires; the redirect to /login
+            tears the menu down anyway.
+          */}
+          <DropdownMenuItem asChild onSelect={(event) => event.preventDefault()}>
             <button type="submit" className="flex w-full cursor-pointer items-center gap-2">
               <LogOut className="size-4" />
               Sign out
